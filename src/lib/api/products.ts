@@ -1,13 +1,17 @@
-import { authService } from './auth';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import { getAuthHeaders, handleApiError } from '@/lib/utils/auth';
 
 interface ProductSize {
   id: number;
   name: string;
 }
 
-interface ProductCategory {
+export interface ProductCategory {
   id: number;
   name: string;
+  description?: string;
+  status?: 'active' | 'inactive';
+  product_count?: number;
 }
 
 export interface SubCategory {
@@ -37,21 +41,16 @@ export interface Product {
   add_ons: ProductAddOn[];
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
 export const productService = {
   // Get all products
   async getProducts(): Promise<Product[]> {
     try {
       const response = await fetch(`${API_BASE_URL}/api/products/`, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers: getAuthHeaders(),
+        credentials: 'include'
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch products');
-      }
+      await handleApiError(response);
       
       return await response.json();
     } catch (error) {
@@ -64,14 +63,11 @@ export const productService = {
   async getProductById(id: number): Promise<Product> {
     try {
       const response = await fetch(`${API_BASE_URL}/api/products/${id}/`, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers: getAuthHeaders(),
+        credentials: 'include'
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch product');
-      }
+      await handleApiError(response);
       
       return await response.json();
     } catch (error) {
@@ -81,20 +77,31 @@ export const productService = {
   },
 
   // Create new product
-  async createProduct(productData: FormData): Promise<Product> {
+  async createProduct(productData: FormData | Omit<Product, 'id'>): Promise<Product> {
     try {
+      let headers: Record<string, string> = {};
+      let body: BodyInit;
+      
+      // Handle FormData (for file uploads)
+      if (productData instanceof FormData) {
+        // For FormData, the browser will set the correct Content-Type with boundary
+        headers = {};
+        body = productData;
+      } else {
+        body = JSON.stringify(productData);
+      }
+
       const response = await fetch(`${API_BASE_URL}/api/products/`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+          ...headers,
         },
-        body: productData
+        credentials: 'include',
+        body,
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to create product');
-      }
+
+      await handleApiError(response);
       
       return await response.json();
     } catch (error) {
@@ -133,14 +140,11 @@ export const productService = {
     try {
       const response = await fetch(`${API_BASE_URL}/api/products/${id}/`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers: getAuthHeaders(),
+        credentials: 'include',
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete product');
-      }
+
+      await handleApiError(response);
     } catch (error) {
       console.error(`Error deleting product ${id}:`, error);
       throw error;
@@ -152,9 +156,7 @@ export const productService = {
     try {
       console.log('Fetching categories from:', `${API_BASE_URL}/api/category/`);
       const response = await fetch(`${API_BASE_URL}/api/category/`, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         credentials: 'include' // Include cookies for session-based auth if needed
       });
       
@@ -194,18 +196,94 @@ export const productService = {
     
     try {
       const response = await fetch(url, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers: getAuthHeaders(),
+        credentials: 'include',
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch subcategories');
-      }
+      await handleApiError(response);
       
       return await response.json();
     } catch (error) {
       console.error('Error fetching subcategories:', error);
+      throw error;
+    }
+  },
+
+  // Create a new category
+  async createCategory(name: string, description: string = ''): Promise<ProductCategory> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/category/`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name, description }),
+      });
+      
+      await handleApiError(response);
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating category:', error);
+      throw error;
+    }
+  },
+
+  // Create a new subcategory
+  async createSubcategory(name: string, categoryId: number): Promise<SubCategory> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/subcategory/`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          name,
+          category: categoryId 
+        }),
+      });
+      
+      await handleApiError(response);
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating subcategory:', error);
+      throw error;
+    }
+  },
+
+  // Delete a category
+  async deleteCategory(id: number): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/category/${id}/`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
+      
+      await handleApiError(response);
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      throw error;
+    }
+  },
+
+  // Delete a subcategory
+  async deleteSubcategory(id: number): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/subcategory/${id}/`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
+      
+      await handleApiError(response);
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
       throw error;
     }
   }

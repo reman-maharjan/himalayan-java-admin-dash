@@ -4,8 +4,12 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Layers, Package, TrendingUp, Eye, Loader2 } from "lucide-react"
-import { productService, type SubCategory } from "@/lib/api/products"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus, Search, Layers, Package, Trash2, Edit, Loader2, RefreshCw, Eye, TrendingUp } from "lucide-react"
+import { productService, type SubCategory, type ProductCategory } from "@/lib/api/products"
+import { toast } from "sonner"
 
 export default function SubcategoriesPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -13,22 +17,53 @@ export default function SubcategoriesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<number | ''>('')
-  const [categories, setCategories] = useState<{id: number, name: string}[]>([])
+  const [categories, setCategories] = useState<ProductCategory[]>([])
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentSubcategory, setCurrentSubcategory] = useState<Partial<SubCategory> | null>(null)
+  const [formData, setFormData] = useState({
+    name: '',
+    category: ''
+  })
 
   // Fetch categories on component mount
   useEffect(() => {
     const fetchCategories = async () => {
       try {
+        setLoading(true)
         const data = await productService.getCategories()
         setCategories(data)
+        if (data.length > 0 && !selectedCategory) {
+          setSelectedCategory(data[0].id)
+        }
       } catch (err) {
         console.error('Error fetching categories:', err)
         setError('Failed to load categories')
+        toast.error('Failed to load categories')
+      } finally {
+        setLoading(false)
       }
     }
 
     fetchCategories()
   }, [])
+
+  // Reset form when dialog opens/closes
+  useEffect(() => {
+    if (isDialogOpen) {
+      if (currentSubcategory) {
+        setFormData({
+          name: currentSubcategory.name || '',
+          category: currentSubcategory.category?.toString() || selectedCategory.toString()
+        })
+      } else {
+        setFormData({
+          name: '',
+          category: selectedCategory.toString()
+        })
+      }
+    }
+  }, [isDialogOpen, currentSubcategory, selectedCategory])
 
   // Fetch subcategories when selectedCategory changes
   useEffect(() => {
@@ -48,6 +83,7 @@ export default function SubcategoriesPage() {
       } catch (err) {
         console.error('Error fetching subcategories:', err)
         setError('Failed to load subcategories')
+        toast.error('Failed to load subcategories')
       } finally {
         setLoading(false)
       }
@@ -56,25 +92,162 @@ export default function SubcategoriesPage() {
     fetchSubcategories()
   }, [selectedCategory])
 
-  // Filter subcategories based on search query
-  const filteredSubcategories = subcategories.filter(subcategory =>
-    subcategory.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const handleAddSubcategory = () => {
+    setCurrentSubcategory(null)
+    setIsDialogOpen(true)
+  }
+
+  const handleEditSubcategory = (subcategory: SubCategory) => {
+    setCurrentSubcategory(subcategory)
+    setIsDialogOpen(true)
+  }
+
+  const handleDeleteSubcategory = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this subcategory?')) return
+    
+    try {
+      await productService.deleteSubcategory(id)
+      setSubcategories(subcategories.filter(sub => sub.id !== id))
+      toast.success('Subcategory deleted successfully')
+    } catch (err) {
+      console.error('Failed to delete subcategory:', err)
+      toast.error('Failed to delete subcategory')
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.name || !formData.category) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+    
+    setIsSubmitting(true)
+    
+    try {
+      if (currentSubcategory?.id) {
+        // Update existing subcategory
+        // await productService.updateSubcategory(currentSubcategory.id, {
+        //   name: formData.name,
+        //   category: Number(formData.category)
+        // })
+        setSubcategories(subcategories.map(sub => 
+          sub.id === currentSubcategory.id 
+            ? { ...sub, name: formData.name, category: Number(formData.category) } 
+            : sub
+        ))
+        toast.success('Subcategory updated successfully')
+      } else {
+        // Create new subcategory
+        const newSubcategory = await productService.createSubcategory(
+          formData.name, 
+          Number(formData.category)
+        )
+        setSubcategories([newSubcategory, ...subcategories])
+        toast.success('Subcategory created successfully')
+      }
+      
+      setIsDialogOpen(false)
+    } catch (error) {
+      console.error('Error saving subcategory:', error)
+      toast.error('Failed to save subcategory')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const filteredSubcategories = subcategories.filter(subcategory => 
+    subcategory.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    categories.find(c => c.id === subcategory.category)?.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Sub-categories</h1>
-          <p className="text-muted-foreground">Manage product sub-categories and detailed organization</p>
+      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Subcategories</h1>
+          <p className="text-sm text-muted-foreground">Manage product subcategories and organization</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Sub-category
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={handleAddSubcategory} className="w-full md:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Subcategory
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => window.location.reload()}>
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="sr-only">Refresh</span>
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Add/Edit Subcategory Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>{currentSubcategory?.id ? 'Edit' : 'Add New'} Subcategory</DialogTitle>
+              <DialogDescription>
+                {currentSubcategory?.id 
+                  ? 'Update the subcategory details below.' 
+                  : 'Enter the details for the new subcategory.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Subcategory Name *</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  placeholder="e.g., T-Shirts, Pants"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Category *</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({...formData, category: value})}
+                  required
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {currentSubcategory?.id ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : currentSubcategory?.id ? 'Update Subcategory' : 'Create Subcategory'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+<div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Sub-categories</CardTitle>
@@ -211,9 +384,25 @@ export default function SubcategoriesPage() {
                           {categories.find(c => c.id === subcategory.category)?.name || 'Unknown'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button className="text-indigo-600 hover:text-indigo-900 mr-4">Edit</button>
-                        <button className="text-red-600 hover:text-red-900">Delete</button>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleEditSubcategory(subcategory)}
+                        >
+                          <Edit className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteSubcategory(subcategory.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
                       </td>
                     </tr>
                   ))}

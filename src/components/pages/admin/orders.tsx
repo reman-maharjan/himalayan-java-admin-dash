@@ -5,16 +5,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Filter, Download, ShoppingCart, Clock, CheckCircle, TrendingUp, DollarSign, Loader2 } from "lucide-react"
+import { Search, Filter, Download, ShoppingCart, Clock, CheckCircle, TrendingUp, DollarSign, Loader2, AlertCircle } from "lucide-react"
 import { orderService } from "@/lib/api/orders"
-import { Order, OrderStatus } from "@/types/orderType"
+import { Order, OrderStatus, OrderResponse } from "@/types/orderType"
+import { format } from "date-fns"
 
 export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all")
-  const [branchFilter, setBranchFilter] = useState("all")
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<OrderResponse[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -23,32 +24,36 @@ export default function OrdersPage() {
     revenue: 0
   })
 
-  const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        setLoading(true);
-        setError(null);
+        setLoading(true)
+        setError(null)
         
-        console.log('Fetching orders...');
-        const data = await orderService.getOrders();
-        console.log('Orders fetched successfully:', data);
+        // Fetch all orders
+        const data = await orderService.getOrders()
         
-        setOrders(data);
+        // Transform the data to match our OrderResponse type
+        const transformedOrders = data.map(order => ({
+          ...order,
+          created_at: order.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString(),
+          customer_name: order.user.full_name || 'Guest',
+          customer_phone: order.user.phone_number || 'N/A',
+          items: order.items || []
+        }))
+        
+        setOrders(transformedOrders)
         
         // Calculate statistics
-        const today = new Date().toISOString().split('T')[0];
-        const todayRevenue = data
-          .filter(order => order.status === 'completed' && order.created_at?.startsWith(today))
-          .reduce((sum, order) => sum + (order.total_price || 0), 0);
+        const today = new Date().toISOString().split('T')[0]
+        const completedOrders = transformedOrders.filter(order => order.order_status === 'completed')
 
         setStats({
-          total: data.length,
-          pending: data.filter(o => o.status === 'pending').length,
-          processing: data.filter(o => o.status === 'processing').length,
-          completed: data.filter(o => o.status === 'completed').length,
-          revenue: todayRevenue
+          total: transformedOrders.length,
+          pending: transformedOrders.filter(o => o.order_status === 'pending').length,
+          processing: transformedOrders.filter(o => o.order_status === 'processing').length,
+          completed: completedOrders.length,
+          revenue: 0
         });
       } catch (error) {
         console.error('Failed to fetch orders:', error);
@@ -65,14 +70,26 @@ export default function OrdersPage() {
     fetchOrders()
   }, [])
 
+  // Filter orders based on search and status
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.customer_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         order.id?.toString().includes(searchQuery)
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter
-    const matchesBranch = branchFilter === 'all' || order.branch?.toString() === branchFilter
+    const matchesSearch = !searchQuery || 
+      order.id?.toString().includes(searchQuery) ||
+      order.user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.user.phone_number?.includes(searchQuery)
     
-    return matchesSearch && matchesStatus && matchesBranch
+    const matchesStatus = statusFilter === 'all' || order.order_status === statusFilter
+    
+    return matchesSearch && matchesStatus
   })
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy h:mm a')
+    } catch (e) {
+      return 'Invalid date'
+    }
+  }
 
   const handleStatusChange = async (orderId: number, newStatus: OrderStatus) => {
     try {
@@ -134,11 +151,12 @@ export default function OrdersPage() {
         </div>
         <Button variant="outline" disabled>
           <Download className="mr-2 h-4 w-4" />
-          Export Orders
+          Export
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
@@ -146,69 +164,61 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">All time orders</p>
+            <p className="text-xs text-muted-foreground">All time</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            <div className="text-2xl font-bold">{stats.pending}</div>
             <p className="text-xs text-muted-foreground">Awaiting processing</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Processing</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.processing}</div>
-            <p className="text-xs text-muted-foreground">Being prepared</p>
+            <div className="text-2xl font-bold">{stats.processing}</div>
+            <p className="text-xs text-muted-foreground">In progress</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
-            <p className="text-xs text-muted-foreground">Successfully fulfilled</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Revenue Today</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Rs. {stats.revenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Today's total revenue</p>
+            <div className="text-2xl font-bold">{stats.completed}</div>
+            <p className="text-xs text-muted-foreground">Successfully delivered</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Orders</CardTitle>
-          <CardDescription>Manage and track all customer orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-            <div className="flex flex-1 gap-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search orders..."
+                  placeholder="Search by order ID, name, or phone..."
+                  className="pl-9"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as OrderStatus | "all")}>
+            </div>
+            <div className="flex gap-3">
+              <Select 
+                value={statusFilter} 
+                onValueChange={(value) => setStatusFilter(value as OrderStatus | "all")}
+              >
                 <SelectTrigger className="w-[180px]">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Filter by status" />
@@ -221,95 +231,120 @@ export default function OrdersPage() {
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={branchFilter} onValueChange={setBranchFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by branch" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
-                  <SelectItem value="1">Thamel Branch</SelectItem>
-                  <SelectItem value="2">Durbar Marg Branch</SelectItem>
-                  <SelectItem value="3">Patan Branch</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="border rounded-md">
-            <div className="w-full overflow-auto">
-              <table className="w-full caption-bottom text-sm">
-                <thead className="[&_tr]:border-b">
-                  <tr className="border-b transition-colors hover:bg-muted/50">
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Order #</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Customer</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Items</th>
-                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Total</th>
-                    <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
-                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Date</th>
-                    <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Actions</th>
+      {/* Orders Table */}
+      <Card>
+        <CardHeader className="px-6 py-4 border-b">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Recent Orders</CardTitle>
+              <CardDescription>
+                {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} found
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {filteredOrders.length === 0 ? (
+            <div className="text-center py-12">
+              <ShoppingCart className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No orders found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {statusFilter !== 'all' || searchQuery
+                  ? 'Try changing your filters or search query.'
+                  : 'No orders have been placed yet.'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Order ID
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Customer
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Items
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="[&_tr:last-child]:border-0">
+                <tbody className="bg-white divide-y divide-gray-200">
                   {filteredOrders.map((order) => (
-                    <tr key={order.id} className="border-b transition-colors hover:bg-muted/50">
-                      <td className="p-4 align-middle font-medium">#{order.id}</td>
-                      <td className="p-4 align-middle">{order.customer_name || 'Guest'}</td>
-                      <td className="p-4 align-middle">
-                        {order.items?.slice(0, 2).map((item, i) => (
-                          <div key={i} className="text-sm text-muted-foreground">
-                            {item.quantity}x {item.name || `Product ${item.product}`}
-                          </div>
-                        ))}
-                        {order.items && order.items.length > 2 && (
-                          <div className="text-sm text-muted-foreground">
-                            +{order.items.length - 2} more items
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        #{order.id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {order.user.full_name || 'Guest'}
+                        </div>
+                        {order.user.phone_number && (
+                          <div className="text-sm text-gray-500">{order.user.phone_number}</div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {order.items?.length || 0} {order.items?.length === 1 ? 'item' : 'items'}
+                        </div>
+                        {order.items?.length > 0 && (
+                          <div className="text-sm text-gray-500 truncate max-w-xs">
+                            {order.items.slice(0, 2).map((item, index) => (
+                              <span key={index}>
+                                {item.product?.name || 'Item'}
+                                {index < Math.min(1, order.items.length - 1) ? ', ' : ''}
+                              </span>
+                            ))}
+                            {order.items.length > 2 ? ` +${order.items.length - 2} more` : ''}
                           </div>
                         )}
                       </td>
-                      <td className="p-4 text-right align-middle font-medium">
-                        Rs. {Number(order.total_price || 0).toFixed(2)}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        Rs. {order.total_price}
                       </td>
-                      <td className="p-4 align-middle">
-                        <Select 
-                          value={order.status} 
-                          onValueChange={(value) => handleStatusChange(order.id!, value as OrderStatus)}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span 
+                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full  capitalize ${
+                            order.order_status === 'completed' 
+                              ? 'bg-green-100 text-green-800' 
+                              : order.order_status === 'processing' 
+                                ? 'bg-yellow-100 text-yellow-800' 
+                                : order.order_status === 'cancelled' 
+                                  ? 'bg-red-100 text-red-800'
+                                  : order.order_status === 'pending'
+                                    ? 'bg-gray-100 text-gray-800'
+                                    : 'bg-blue-100 text-blue-800'
+                          }`}
                         >
-                          <SelectTrigger className="w-[150px]">
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="processing">Processing</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          {order?.order_status}
+                        </span>
                       </td>
-                      <td className="p-4 text-right align-middle text-sm text-muted-foreground">
-                        {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td className="p-4 text-right align-middle">
-                        <Button variant="ghost" size="sm" className="h-8">
-                          View
-                        </Button>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {order.created_at ? formatDate(order.created_at) : 'N/A'}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            {filteredOrders.length === 0 && (
-              <div className="flex items-center justify-center p-8 text-center">
-                <div className="grid gap-1">
-                  <p className="text-sm text-muted-foreground">No orders found</p>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>
   )
 }
-
-

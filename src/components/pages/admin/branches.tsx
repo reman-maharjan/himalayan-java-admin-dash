@@ -13,10 +13,6 @@ export default function BranchesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [cityFilter, setCityFilter] = useState("all")
 
-  const handleAddBranch = () => {
-    document.getElementById("add-branch-trigger")?.click()
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -24,66 +20,6 @@ export default function BranchesPage() {
           <h1 className="text-3xl font-bold text-foreground">Branch Management</h1>
           <p className="text-muted-foreground">Manage all Himalayan Java locations and performance</p>
         </div>
-        <Button onClick={handleAddBranch} className="bg-primary hover:bg-primary/90">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Branch
-        </Button>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Branches</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+2 new this year</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Branches</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">10</div>
-            <p className="text-xs text-muted-foreground">83% operational</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">156</div>
-            <p className="text-xs text-muted-foreground">Across all branches</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Rs. 3.4M</div>
-            <p className="text-xs text-muted-foreground">This month</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Rating</CardTitle>
-            <Star className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold flex items-center gap-1">
-              4.5
-              <span className="text-yellow-500">★</span>
-            </div>
-            <p className="text-xs text-muted-foreground">Across all branches</p>
-          </CardContent>
-        </Card>
       </div>
 
       <Card>

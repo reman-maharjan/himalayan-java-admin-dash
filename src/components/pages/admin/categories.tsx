@@ -4,21 +4,89 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, Search, Loader2, AlertCircle, RefreshCw, Tags, Package, TrendingUp } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Plus, Search, Loader2, AlertCircle, RefreshCw, Tags, Package, TrendingUp, Trash2, Edit } from "lucide-react"
 import { productService } from "@/lib/api/products"
 import { toast } from "sonner"
 
-interface Category {
+export interface Category {
   id: number
   name: string
+  description?: string
+  status?: 'active' | 'inactive'
+  product_count?: number
+}
+
+interface ProductCategory {
+  id: number
+  name: string
+  description?: string
   product_count?: number
 }
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<(Category | ProductCategory)[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentCategory, setCurrentCategory] = useState<Partial<Category & ProductCategory> | null>(null)
+  const [formData, setFormData] = useState<{
+    name: string;
+    description: string;
+    status: 'active' | 'inactive';
+  }>({
+    name: '',
+    description: '',
+    status: 'active'
+  })
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      status: 'active'
+    })
+    setCurrentCategory(null)
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    
+    try {
+      if (currentCategory?.id) {
+        // Update existing category
+        // await productService.updateCategory(currentCategory.id, formData)
+        setCategories(categories.map(cat => 
+          cat.id === currentCategory.id ? { ...cat, ...formData } : cat
+        ))
+        toast.success('Category updated successfully')
+      } else {
+        // Create new category
+        const newCategory = await productService.createCategory(formData.name, formData.description)
+        setCategories([newCategory, ...categories])
+        toast.success('Category created successfully')
+      }
+      setIsDialogOpen(false)
+      resetForm()
+    } catch (error) {
+      console.error('Error saving category:', error)
+      toast.error('Failed to save category')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const fetchCategories = async () => {
     try {
@@ -53,13 +121,26 @@ export default function CategoriesPage() {
   }, [])
 
   const handleAddCategory = () => {
-    document.getElementById("add-category-trigger")?.click()
+    resetForm()
+    setCurrentCategory(null)
+    setIsDialogOpen(true)
+  }
+
+  const handleEditCategory = (category: Category | ProductCategory) => {
+    setCurrentCategory(category)
+    setFormData({
+      name: category.name,
+      description: category.description || '',
+      status: 'status' in category ? category.status || 'active' : 'active'
+    })
+    setIsDialogOpen(true)
   }
 
   const handleDeleteCategory = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this category?')) return
-    
+    const response = await productService.deleteCategory(id)
     try {
+
       // TODO: Add delete category API call when available
       // await productService.deleteCategory(id)
       setCategories(categories.filter(category => category.id !== id))
@@ -81,10 +162,15 @@ export default function CategoriesPage() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Categories</h1>
           <p className="text-sm text-muted-foreground">Manage product categories and organization</p>
         </div>
-        <Button onClick={handleAddCategory} className="w-full md:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Category
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={handleAddCategory} className="w-full md:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Category
+          </Button>
+          <Button variant="outline" size="icon" onClick={fetchCategories} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:space-x-4 sm:space-y-0">
@@ -97,10 +183,6 @@ export default function CategoriesPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="icon" className="shrink-0" onClick={fetchCategories}>
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          <span className="sr-only">Refresh</span>
-        </Button>
       </div>
 
       <Card>
@@ -171,23 +253,35 @@ export default function CategoriesPage() {
                         <div className="text-sm font-medium text-gray-900">{category.name}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {category.product_count || 0} products
+                        <span className="text-sm text-gray-500">
+                          {category.product_count || 0} {category.product_count === 1 ? 'product' : 'products'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => console.log('Edit:', category.id)}
-                          className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditCategory(category)
+                          }}
                         >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCategory(category.id)}
-                          className="text-red-600 hover:text-red-900"
+                          <Edit className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteCategory(category.id)
+                          }}
                         >
-                          Delete
-                        </button>
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
                       </td>
                     </tr>
                   ))}
@@ -197,6 +291,65 @@ export default function CategoriesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add/Edit Category Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>{currentCategory?.id ? 'Edit' : 'Add New'} Category</DialogTitle>
+              <DialogDescription>
+                {currentCategory?.id 
+                  ? 'Update the category details below.' 
+                  : 'Enter the details for the new category.'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Category Name *</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Electronics, Clothing"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="Optional description for the category"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsDialogOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {currentCategory?.id ? 'Updating...' : 'Creating...'}
+                  </>
+                ) : currentCategory?.id ? 'Update Category' : 'Create Category'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

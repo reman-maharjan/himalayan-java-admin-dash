@@ -21,7 +21,7 @@ export function LoginForm() {
     phoneNumber: "",
     otp: "",
   })
-  const [otpSent, setOtpSent] = useState(false)
+  const [, setOtpSent] = useState(false)
 
   const router = useRouter();
 
@@ -53,10 +53,9 @@ export function LoginForm() {
         return;
       }
 
-      setOtpSent(true);
       setStep("otp");
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('Error sending OTP:');
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
@@ -160,7 +159,7 @@ export function LoginForm() {
               <p className="text-xs text-coffee-500">Enter your registered phone number</p>
             </div>
 
-            <Button type="submit" className="w-full bg-coffee-600 hover:bg-coffee-700 text-blackq" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-coffee-600 hover:bg-coffee-700 text-black" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -172,7 +171,7 @@ export function LoginForm() {
             </Button>
 
             <div className="text-center text-sm text-coffee-600">
-              Don't have an account?{" "}
+              Don&apos;t have an account?{" "}
               <Link href="/register" className="text-coffee-600 hover:text-coffee-800 font-medium hover:underline">
                 Sign up here
               </Link>
@@ -221,7 +220,7 @@ export function LoginForm() {
                 className="text-sm text-coffee-600 hover:text-coffee-800 hover:underline"
                 disabled={isLoading}
               >
-                Didn't receive code? Resend OTP
+                Don&apos;t receive code? Resend OTP
               </button>
               <div>
                 <button

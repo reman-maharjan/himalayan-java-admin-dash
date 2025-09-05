@@ -65,22 +65,29 @@ export const authService = {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ 
           phone_number: phoneNumber, 
           otp 
         }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
         return { 
           success: false, 
-          error: { detail: data.detail || 'Invalid OTP' } 
+          error: { 
+            detail: errorData.detail || 
+                   errorData.message || 
+                   Object.values(errorData).flat().join(' ') || 
+                   'Invalid OTP' 
+          } 
         };
       }
 
-      // Store the token in localStorage
+      const data = await response.json();
+      
+      // Only store token if it's provided in the response
       if (data.token) {
         localStorage.setItem('authToken', data.token);
       }
@@ -90,7 +97,9 @@ export const authService = {
       console.error('OTP verification error:', error);
       return { 
         success: false, 
-        error: { detail: 'Network error. Please try again.' } 
+        error: { 
+          detail: error instanceof Error ? error.message : 'Network error. Please try again.' 
+        } 
       };
     }
   },
@@ -115,17 +124,23 @@ export const authService = {
       const response = await fetch(`${API_BASE_URL}/api/register/`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
         return { 
           success: false, 
-          error: { detail: data.detail || 'Registration failed' } 
+          error: { 
+            detail: errorData.detail || 
+                   errorData.message || 
+                   Object.values(errorData).flat().join(' ') || 
+                   'Registration failed' 
+          } 
         };
       }
 
+      const data = await response.json();
       return { success: true, data };
     } catch (error) {
       console.error('Registration error:', error);

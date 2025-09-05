@@ -1,23 +1,16 @@
-import { Order, OrderRequest, OrderResponse } from '@/types/orderType';
+import { 
+  Order, 
+  OrderRequest, 
+  OrderResponse, 
+  OrderStatus, 
+  ApiOrderResponse, 
+  User,
+  OrderItem as OrderItemType,
+  Product
+} from '@/types/orderType';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
-const getAuthHeaders = (): HeadersInit => {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-  };
-  
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    console.log('Auth token:', token ? '***' : 'No token found');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-  }
-  
-  console.log('Request headers:', headers);
-  return headers;
-};
+import { getAuthHeaders, handleApiError } from '@/lib/utils/auth';
 
 export const orderService = {
   // Create a new order
@@ -30,10 +23,7 @@ export const orderService = {
         credentials: 'include',
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to create order');
-      }
+      await handleApiError(response);
 
       return await response.json();
     } catch (error) {
@@ -45,25 +35,143 @@ export const orderService = {
   // Get all orders
   async getOrders(): Promise<OrderResponse[]> {
     try {
-      console.log('Fetching orders from:', `${API_BASE_URL}/api/orders/`);
-      const response = await fetch(`${API_BASE_URL}/api/orders/`, {
-        headers: getAuthHeaders(),
+      const url = `${API_BASE_URL}/api/orders/`;
+      const headers = getAuthHeaders();
+      console.log('Fetching orders from:', url);
+      
+      const response = await fetch(url, {
+        headers,
+        credentials: 'include',
+      });
+      
+      await handleApiError(response);
+
+      const apiOrders: ApiOrderResponse[] = await response.json();
+      
+      // Transform the API response to match our frontend types
+      return apiOrders.map((apiOrder): OrderResponse => {
+        // Create a minimal user object with required fields
+        const user: User = {
+          id: apiOrder.user.id,
+          full_name: apiOrder.user.full_name,
+          email: '', // Default empty email since it's not in the API response
+          phone_number: apiOrder.user.phone_number,
+          profile_picture: null,
+          redeem_points: 0,
+          created_at: apiOrder.created_at,
+          updated_at: apiOrder.updated_at
+        };
+
+        // Transform items to match OrderItem type
+        const items: OrderItemType[] = apiOrder.items.map(item => {
+          const product = typeof item.product === 'number' 
+            ? { id: item.product, name: 'Product', description: '', price: 0, image: '', image_alt_description: '' }
+            : { 
+                id: item.product.id, 
+                name: item.product.name, 
+                description: '', 
+                price: 0, 
+                image: '', 
+                image_alt_description: '' 
+              };
+
+          return {
+            id: item.id,
+            product: product,
+            quantity: item.quantity,
+            price: item.price
+          };
+        });
+
+        return {
+          id: apiOrder.id,
+          order_number: apiOrder.order_number,
+          order_status: apiOrder.order_status as OrderStatus,
+          order_type: apiOrder.order_type,
+          total_price: apiOrder.total_price,
+          discount: apiOrder.discount || '0',
+          branch: apiOrder.branch,
+          user: user,
+          created_at: apiOrder.created_at,
+          updated_at: apiOrder.updated_at,
+          items: items,
+          customer_name: apiOrder.user.full_name,
+          customer_phone: apiOrder.user.phone_number,
+          notes: ''
+        };
+      });
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      throw error;
+    }
+  },
+
+  // Get orders filtered by branch ID
+  async getOrdersByBranch(branchId: number): Promise<OrderResponse[]> {
+    try {
+      const url = `${API_BASE_URL}/api/orders/?branch=${encodeURIComponent(branchId)}`;
+      const headers = getAuthHeaders();
+      
+      const response = await fetch(url, {
+        headers,
         credentials: 'include',
       });
 
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('Error response:', errorData);
-        throw new Error(`Failed to fetch orders: ${response.status} ${response.statusText}`);
-      }
+      await handleApiError(response);
 
-      const data = await response.json();
-      console.log('Orders data:', data);
-      return data;
+      const apiOrders: ApiOrderResponse[] = await response.json();
+
+      return apiOrders.map((apiOrder): OrderResponse => {
+        const user: User = {
+          id: apiOrder.user.id,
+          full_name: apiOrder.user.full_name,
+          email: '',
+          phone_number: apiOrder.user.phone_number,
+          profile_picture: null,
+          redeem_points: 0,
+          created_at: apiOrder.created_at,
+          updated_at: apiOrder.updated_at,
+        };
+
+        const items: OrderItemType[] = apiOrder.items.map(item => {
+          const product = typeof item.product === 'number'
+            ? { id: item.product, name: 'Product', description: '', price: 0, image: '', image_alt_description: '' }
+            : {
+                id: item.product.id,
+                name: item.product.name,
+                description: '',
+                price: 0,
+                image: '',
+                image_alt_description: '',
+              };
+
+          return {
+            id: item.id,
+            product,
+            quantity: item.quantity,
+            price: item.price,
+          };
+        });
+
+        return {
+          id: apiOrder.id,
+          order_number: apiOrder.order_number,
+          order_status: apiOrder.order_status as OrderStatus,
+          order_type: apiOrder.order_type,
+          total_price: apiOrder.total_price,
+          discount: apiOrder.discount || '0',
+          branch: apiOrder.branch,
+          user,
+          created_at: apiOrder.created_at,
+          updated_at: apiOrder.updated_at,
+          items,
+          customer_name: apiOrder.user.full_name,
+          customer_phone: apiOrder.user.phone_number,
+          notes: '',
+        };
+      });
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('Error fetching orders by branch:', error);
       throw error;
     }
   },
@@ -76,9 +184,7 @@ export const orderService = {
         credentials: 'include',
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch order');
-      }
+      await handleApiError(response);
 
       return await response.json();
     } catch (error) {
@@ -97,9 +203,7 @@ export const orderService = {
         credentials: 'include',
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update order status');
-      }
+      await handleApiError(response);
 
       return await response.json();
     } catch (error) {
@@ -116,6 +220,8 @@ export const orderService = {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
+
+      await handleApiError(response);
 
       if (!response.ok) {
         const errorData = await response.json();

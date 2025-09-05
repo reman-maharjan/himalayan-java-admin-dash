@@ -1,7 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,402 +20,347 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, Edit, Trash2, Eye, MapPin, Phone, Users, Clock } from "lucide-react"
+import { toast } from "sonner"
+import { MoreHorizontal, Edit, Trash2, Eye, Plus, ShoppingCart } from "lucide-react"
 import { BranchFormDialog } from "./branch-form-dialog"
 import { BranchDetailsDialog } from "./branch-details-dialog"
+import { BranchOrders } from "./branch-orders"
+import { branchService, Branch as BranchType, BranchCreateData } from "@/lib/api/branches"
 
-export interface Branch {
-  id: string
-  name: string
-  address: string
-  city: string
-  phone: string
-  email: string
-  manager: string
-  status: "active" | "inactive" | "maintenance"
-  openingHours: {
-    open: string
-    close: string
-  }
-  staffCount: number
-  seatingCapacity: number
-  hasWifi: boolean
-  hasParking: boolean
-  hasDelivery: boolean
-  monthlyRevenue: number
-  monthlyOrders: number
-  averageRating: number
-  createdAt: string
-  updatedAt: string
-}
+export type Branch = BranchType
 
-const mockBranches: Branch[] = [
-  {
-    id: "1",
-    name: "Thamel Branch",
-    address: "Thamel Marg, Kathmandu",
-    city: "Kathmandu",
-    phone: "+977-1-4700123",
-    email: "thamel@himalayanjava.com",
-    manager: "Rajesh Shrestha",
-    status: "active",
-    openingHours: {
-      open: "06:00",
-      close: "22:00",
-    },
-    staffCount: 12,
-    seatingCapacity: 45,
-    hasWifi: true,
-    hasParking: false,
-    hasDelivery: true,
-    monthlyRevenue: 850000,
-    monthlyOrders: 1250,
-    averageRating: 4.5,
-    createdAt: "2023-01-15",
-    updatedAt: "2024-02-20",
-  },
-  {
-    id: "2",
-    name: "Durbar Marg Branch",
-    address: "Durbar Marg, Kathmandu",
-    city: "Kathmandu",
-    phone: "+977-1-4700124",
-    email: "durbarmarg@himalayanjava.com",
-    manager: "Sita Gurung",
-    status: "active",
-    openingHours: {
-      open: "07:00",
-      close: "21:00",
-    },
-    staffCount: 15,
-    seatingCapacity: 60,
-    hasWifi: true,
-    hasParking: true,
-    hasDelivery: true,
-    monthlyRevenue: 1200000,
-    monthlyOrders: 1800,
-    averageRating: 4.7,
-    createdAt: "2023-02-10",
-    updatedAt: "2024-02-18",
-  },
-  {
-    id: "3",
-    name: "Patan Branch",
-    address: "Lagankhel, Patan",
-    city: "Lalitpur",
-    phone: "+977-1-4700125",
-    email: "patan@himalayanjava.com",
-    manager: "Amit Maharjan",
-    status: "active",
-    openingHours: {
-      open: "06:30",
-      close: "21:30",
-    },
-    staffCount: 10,
-    seatingCapacity: 35,
-    hasWifi: true,
-    hasParking: true,
-    hasDelivery: false,
-    monthlyRevenue: 650000,
-    monthlyOrders: 950,
-    averageRating: 4.3,
-    createdAt: "2023-03-05",
-    updatedAt: "2024-02-25",
-  },
-  {
-    id: "4",
-    name: "Pokhara Branch",
-    address: "Lakeside, Pokhara",
-    city: "Pokhara",
-    phone: "+977-61-700126",
-    email: "pokhara@himalayanjava.com",
-    manager: "Krishna Thapa",
-    status: "active",
-    openingHours: {
-      open: "07:00",
-      close: "22:00",
-    },
-    staffCount: 8,
-    seatingCapacity: 40,
-    hasWifi: true,
-    hasParking: false,
-    hasDelivery: true,
-    monthlyRevenue: 720000,
-    monthlyOrders: 1100,
-    averageRating: 4.6,
-    createdAt: "2023-06-20",
-    updatedAt: "2024-02-22",
-  },
-  {
-    id: "5",
-    name: "Bhaktapur Branch",
-    address: "Durbar Square, Bhaktapur",
-    city: "Bhaktapur",
-    phone: "+977-1-4700127",
-    email: "bhaktapur@himalayanjava.com",
-    manager: "Maya Shrestha",
-    status: "maintenance",
-    openingHours: {
-      open: "08:00",
-      close: "20:00",
-    },
-    staffCount: 6,
-    seatingCapacity: 25,
-    hasWifi: true,
-    hasParking: false,
-    hasDelivery: false,
-    monthlyRevenue: 0,
-    monthlyOrders: 0,
-    averageRating: 4.2,
-    createdAt: "2023-08-15",
-    updatedAt: "2024-03-01",
-  },
-]
+// Removed status display as API Branch does not include status
 
 export function BranchesTable() {
-  const [branches, setBranches] = useState<Branch[]>(mockBranches)
+  const router = useRouter()
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [selectedBranchForOrders, setSelectedBranchForOrders] = useState<Branch | null>(null)
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const data = await branchService.getBranches()
+        setBranches(data)
+      } catch (err) {
+        const error = err as Error
+        setError('Failed to fetch branches. Please try again.')
+        toast.error('Failed to load branches', {
+          description: error.message || 'An error occurred while fetching branches.'
+        })
+        console.error('Error fetching branches:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchBranches()
+  }, [])
 
   const handleEdit = (branch: Branch) => {
     setSelectedBranch(branch)
-    setIsEditDialogOpen(true)
+    setIsFormOpen(true)
   }
 
   const handleView = (branch: Branch) => {
     setSelectedBranch(branch)
-    setIsDetailsDialogOpen(true)
+    setIsDetailsOpen(true)
   }
 
-  const handleDelete = (branchId: string, branchName: string) => {
-    if (window.confirm(`Are you sure you want to delete the branch "${branchName}"? This action cannot be undone.`)) {
-      try {
-        setBranches(branches.filter((branch) => branch.id !== branchId));
-        // In a real app, you would also make an API call here
-        // await deleteBranch(branchId);
-      } catch (error) {
-        console.error('Failed to delete branch:', error);
-        // In a real app, show a toast/notification to the user
-        alert('Failed to delete branch. Please try again.');
-      }
-    }
+  const handleDelete = (branch: Branch) => {
+    setSelectedBranch(branch)
+    setIsDeleteDialogOpen(true)
   }
 
-  const handleSaveBranch = (branchData: Partial<Branch>) => {
-    // Validate required fields
-    const requiredFields = ['name', 'address', 'city', 'phone', 'email', 'manager'] as const;
-    const missingFields = requiredFields.filter(field => !branchData[field]);
-    
-    if (missingFields.length > 0) {
-      alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
-      return;
-    }
+  const handleViewOrders = (branch: Branch) => {
+    setSelectedBranchForOrders(branch)
+  }
 
+  const handleSave = async (branchData: BranchCreateData, id?: number) => {
     try {
-      if (selectedBranch) {
-        // Edit existing branch
-        setBranches(
-          branches.map((branch) =>
-            branch.id === selectedBranch.id
-              ? { 
-                  ...branch, 
-                  ...branchData, 
-                  updatedAt: new Date().toISOString().split("T")[0] 
-                } as Branch
-              : branch,
-          ),
-        )
+      if (id) {
+        // Update existing branch
+        const updatedBranch = await branchService.updateBranch(id, branchData)
+        setBranches(branches.map(b => b.id === id ? updatedBranch : b))
+        toast.success('Branch updated successfully')
       } else {
-        // Add new branch
-        const newBranch: Branch = {
-          id: Date.now().toString(),
-          name: branchData.name!,
-          address: branchData.address!,
-          city: branchData.city!,
-          phone: branchData.phone!,
-          email: branchData.email!,
-          manager: branchData.manager!,
-          status: branchData.status || "active",
-          openingHours: branchData.openingHours || { open: "07:00", close: "21:00" },
-          staffCount: branchData.staffCount || 0,
-          seatingCapacity: branchData.seatingCapacity || 0,
-          hasWifi: branchData.hasWifi || false,
-          hasParking: branchData.hasParking || false,
-          hasDelivery: branchData.hasDelivery || false,
-          monthlyRevenue: 0,
-          monthlyOrders: 0,
-          averageRating: 0,
-          createdAt: new Date().toISOString().split("T")[0],
-          updatedAt: new Date().toISOString().split("T")[0],
-        }
-        setBranches([...branches, newBranch]);
+        // Create new branch
+        const newBranch = await branchService.createBranch(branchData)
+        setBranches([...branches, newBranch])
+        toast.success('Branch created successfully')
       }
-      setSelectedBranch(null);
-      setIsEditDialogOpen(false);
-      setIsAddDialogOpen(false);
+      setIsFormOpen(false)
+      setSelectedBranch(null)
     } catch (error) {
-      console.error('Failed to save branch:', error);
-      alert('Failed to save branch. Please try again.');
+      const err = error as Error
+      console.error('Error saving branch:', err)
+      toast.error('Failed to save branch', {
+        description: err.message || 'An error occurred while saving the branch.'
+      })
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800"
-      case "inactive":
-        return "bg-gray-100 text-gray-800"
-      case "maintenance":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  const handleDeleteBranch = async () => {
+    if (!selectedBranch) return
+    
+    try {
+      setIsDeleting(true)
+      await branchService.deleteBranch(selectedBranch.id)
+      setBranches(branches.filter((branch) => branch.id !== selectedBranch.id))
+      setIsDeleteDialogOpen(false)
+      setSelectedBranch(null)
+      toast.success('Branch deleted successfully')
+    } catch (error) {
+      const err = error as Error
+      console.error('Error deleting branch:', err)
+      toast.error('Failed to delete branch', {
+        description: err.message || 'An error occurred while deleting the branch.'
+      })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return `Rs. ${amount.toLocaleString()}`
+  // No status color mapping; Branch type has no status
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">Error loading branches</h3>
+            <div className="mt-2 text-sm text-red-700">
+              <p>{error}</p>
+            </div>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null)
+                  setIsLoading(true)
+                  const fetchBranches = async () => {
+                    try {
+                      const data = await branchService.getBranches()
+                      setBranches(data)
+                    } catch (err) {
+                      const error = err as Error
+                      setError('Failed to fetch branches. Please try again.')
+                      toast.error('Failed to load branches', {
+                        description: error.message || 'An error occurred while fetching branches.'
+                      })
+                      console.error('Error fetching branches:', error)
+                    } finally {
+                      setIsLoading(false)
+                    }
+                  }
+                  fetchBranches()
+                }}
+                className="text-sm font-medium text-red-800 hover:text-red-700 focus:outline-none focus:underline transition duration-150 ease-in-out"
+              >
+                Try again <span aria-hidden="true">&rarr;</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Branches</h2>
+          <p className="text-muted-foreground">
+            Manage your branches and view their details
+          </p>
+        </div>
+        <Button 
+          onClick={() => {
+            setSelectedBranch(null)
+            setIsFormOpen(true)
+          }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Branch
+        </Button>
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Branch</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Address</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead>Manager</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Staff</TableHead>
-              <TableHead>Hours</TableHead>
-              <TableHead>Revenue</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
+              
+              <TableHead>Created At</TableHead>
+              <TableHead>Updated At</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {branches.map((branch) => (
-              <TableRow key={branch.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
-                      <MapPin className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-medium">{branch.name}</div>
-                      <div className="text-sm text-muted-foreground">ID: {branch.id}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium text-sm">{branch.city}</div>
-                    <div className="text-xs text-muted-foreground max-w-[150px] truncate">{branch.address}</div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                      <Phone className="h-3 w-3" />
-                      {branch.phone}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{branch.manager}</div>
-                  <div className="text-sm text-muted-foreground">{branch.email}</div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={getStatusColor(branch.status)}>
-                    {branch.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-medium">{branch.staffCount}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">{branch.seatingCapacity} seats</div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1 text-sm">
-                    <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span>
-                      {branch.openingHours.open} - {branch.openingHours.close}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{formatCurrency(branch.monthlyRevenue)}</div>
-                  <div className="text-xs text-muted-foreground">{branch.monthlyOrders} orders</div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">{branch.averageRating}</span>
-                    <span className="text-yellow-500">★</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => handleView(branch)}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleEdit(branch)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit Branch
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleDelete(branch.id, branch.name);
-                        }} 
-                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Branch
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {branches.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  {isLoading ? 'Loading branches...' : 'No branches found. Create your first branch to get started.'}
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              branches.map((branch) => (
+                <TableRow key={branch.id} className="hover:bg-muted/50">
+                  <TableCell className="font-medium">
+                    {branch.name}
+                  </TableCell>
+                  <TableCell className="max-w-[200px] truncate">
+                    {branch.address}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm text-muted-foreground">
+                      Lat: {branch.latitude}<br />
+                      Lng: {branch.longitude}
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{new Date(branch.created_at).toLocaleDateString()}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(branch.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{new Date(branch.updated_at).toLocaleDateString()}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(branch.updated_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem 
+                          onClick={() => handleView(branch)}
+                          className="cursor-pointer"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleViewOrders(branch)}
+                          className="cursor-pointer"
+                        >
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          View Orders
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleEdit(branch)}
+                          className="cursor-pointer"
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-red-600 cursor-pointer"
+                          onClick={() => handleDelete(branch)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
 
       <BranchFormDialog
+        open={isFormOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedBranch(null)
+          }
+          setIsFormOpen(open)
+        }}
         branch={selectedBranch}
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        onSave={handleSaveBranch}
+        onSave={handleSave}
       />
 
-      <BranchFormDialog
-        branch={null}
-        open={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
-        onSave={handleSaveBranch}
+      <BranchDetailsDialog
+        open={isDetailsOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedBranch(null)
+          }
+          setIsDetailsOpen(open)
+        }}
+        branch={selectedBranch}
       />
 
-      <BranchDetailsDialog branch={selectedBranch} open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen} />
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Branch</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this branch? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteBranch} disabled={isDeleting}>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Export the add dialog trigger */}
-      <Button 
-        onClick={() => setIsAddDialogOpen(true)} 
-        className="sr-only" 
-        id="add-branch-trigger"
-        aria-label="Add new branch"
-      >
-        Add Branch
-      </Button>
-    </>
+      <Dialog open={!!selectedBranchForOrders} onOpenChange={(open) => !open && setSelectedBranchForOrders(null)}>
+        <DialogContent className="max-w-4xl">
+          {selectedBranchForOrders && (
+            <BranchOrders 
+              branchId={selectedBranchForOrders.id}
+              branchName={selectedBranchForOrders.name}
+              onClose={() => setSelectedBranchForOrders(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
