@@ -18,79 +18,192 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Product } from "./products-table"
 
+interface ProductCategory {
+  id: number
+  name: string
+  subcategories?: { id: number; name: string }[]
+}
+
+interface SubCategory {
+  id: number;
+  name: string;
+  category: number;
+}
+
 interface ProductFormDialogProps {
   product: Product | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (productData: Partial<Product>) => void
+  onSave: (product: Partial<Product>) => void
+  categories: ProductCategory[]
+  subcategories: { id: number; name: string; category: number }[]
 }
 
-const categories = [
-  { id: "coffee", name: "Coffee", subcategories: ["Hot Coffee", "Iced Coffee", "Specialty Coffee"] },
-  { id: "tea", name: "Tea", subcategories: ["Hot Tea", "Iced Tea", "Herbal Tea"] },
-  { id: "pastries", name: "Pastries", subcategories: ["Breakfast Pastries", "Dessert Pastries", "Cookies"] },
-  { id: "sandwiches", name: "Sandwiches", subcategories: ["Hot Sandwiches", "Cold Sandwiches", "Wraps"] },
-]
-
-export function ProductFormDialog({ product, open, onOpenChange, onSave }: ProductFormDialogProps) {
+export function ProductFormDialog({ 
+  product, 
+  open, 
+  onOpenChange, 
+  onSave, 
+  categories, 
+  subcategories 
+}: ProductFormDialogProps) {
   const [formData, setFormData] = useState({
+    id: '',
     name: "",
     description: "",
+    price: 0,
     category: "",
     subcategory: "",
-    price: 0,
     cost: 0,
     stock: 0,
     status: "active" as Product["status"],
-    image: "",
+    image_url: "",
+    image: "", // Fixed: Added missing image field
+    points_required: 0,
+    is_featured: false,
   })
 
-  const [availableSubcategories, setAvailableSubcategories] = useState<string[]>([])
+  const [availableSubcategories, setAvailableSubcategories] = useState<{ id: number; name: string }[]>([])
 
+  // Debug logging
   useEffect(() => {
-    if (product) {
-      setFormData({
-        name: product.name,
-        description: product.description,
-        category: product.category,
-        subcategory: product.subcategory,
-        price: product.price,
-        cost: product.cost,
-        stock: product.stock,
-        status: product.status,
-        image: product.image || "",
-      })
+    console.log('ProductFormDialog - Categories:', categories);
+    console.log('ProductFormDialog - Subcategories:', subcategories);
+    console.log('ProductFormDialog - Product:', product);
+  }, [categories, subcategories, product]);
+
+  // Update available subcategories when category changes
+  useEffect(() => {
+    console.log('Category changed:', formData.category);
+    if (formData.category) {
+      const categoryId = parseInt(formData.category, 10);
+      console.log('Looking for subcategories with category ID:', categoryId);
+      const filteredSubs = subcategories.filter(sub => sub.category === categoryId);
+      console.log('Filtered subcategories:', filteredSubs);
+      setAvailableSubcategories(filteredSubs);
+      // Reset subcategory when category changes (only if it's not the initial load)
+      if (formData.subcategory && !product) {
+        setFormData(prev => ({ ...prev, subcategory: '' }));
+      }
     } else {
+      setAvailableSubcategories([]);
+    }
+  }, [formData.category, subcategories]);
+
+  // Initialize form with product data when editing
+  useEffect(() => {
+    if (product && open) {
+      console.log('Initializing form with product:', product);
+      
+      // Find the category that contains the subcategory
+      let categoryId = '';
+      let subcategoryId = '';
+      
+      if (typeof product.subcategory === 'number') {
+        // product.subcategory is the subcategory ID
+        subcategoryId = product.subcategory.toString();
+        const foundSubcat = subcategories.find(sub => sub.id === product.subcategory);
+        if (foundSubcat) {
+          categoryId = foundSubcat.category.toString();
+        }
+      } else if (typeof product.subcategory === 'string') {
+        // Try to parse as number first
+        const subcatId = parseInt(product.subcategory);
+        if (!isNaN(subcatId)) {
+          subcategoryId = subcatId.toString();
+          const foundSubcat = subcategories.find(sub => sub.id === subcatId);
+          if (foundSubcat) {
+            categoryId = foundSubcat.category.toString();
+          }
+        }
+      }
+
+      // If we still don't have a category, try to find it from product.category
+      if (!categoryId && product.category) {
+        const foundCat = categories.find(cat => cat.name === product.category);
+        if (foundCat) {
+          categoryId = foundCat.id.toString();
+        }
+      }
+      
+      console.log('Setting form data - Category ID:', categoryId, 'Subcategory ID:', subcategoryId);
+      
       setFormData({
-        name: "",
-        description: "",
-        category: "",
-        subcategory: "",
+        id: product.id,
+        name: product.name || '',
+        description: product.description || '',
+        price: product.price || 0,
+        category: categoryId,
+        subcategory: subcategoryId,
+        cost: product.cost || 0,
+        stock: product.stock || 0,
+        status: product.status || 'active',
+        image_url: product.image_url || '',
+        image: product.image || '',
+        points_required: product.points_required || 0,
+        is_featured: product.is_featured || false,
+      });
+    } else if (!product && open) {
+      // Reset form for new product
+      console.log('Resetting form for new product');
+      setFormData({
+        id: '',
+        name: '',
+        description: '',
         price: 0,
+        category: '',
+        subcategory: '',
         cost: 0,
         stock: 0,
-        status: "active" as Product["status"],
-        image: "",
-      })
+        status: 'active',
+        image_url: '',
+        image: '',
+        points_required: 0,
+        is_featured: false,
+      });
+      setAvailableSubcategories([]);
     }
-  }, [product, open])
-
-  useEffect(() => {
-    const selectedCategory = categories.find((cat) => cat.name === formData.category)
-    if (selectedCategory) {
-      setAvailableSubcategories(selectedCategory.subcategories)
-    } else {
-      setAvailableSubcategories([])
-    }
-  }, [formData.category])
+  }, [product, open, categories, subcategories])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(formData)
+    console.log('Submitting form data:', formData);
+    
+    // Ensure we're sending the correct data format
+    const submitData = {
+      ...formData,
+      // Convert subcategory to number if it's a string
+      subcategory: formData.subcategory ? parseInt(formData.subcategory) : undefined,
+      // Add the category name for display purposes
+      category: categories.find(cat => cat.id.toString() === formData.category)?.name || ''
+    };
+    
+    console.log('Processed submit data:', submitData);
+    onSave(submitData)
   }
 
-  const handleCategoryChange = (category: string) => {
-    setFormData({ ...formData, category, subcategory: "" })
+  const handleCategoryChange = (value: string) => {
+    console.log('Category changed to:', value);
+    setFormData(prev => ({
+      ...prev,
+      category: value,
+      subcategory: '' // Reset subcategory when category changes
+    }));
+  }
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          image_url: URL.createObjectURL(file),
+          image: URL.createObjectURL(file)
+        }))
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   return (
@@ -102,6 +215,19 @@ export function ProductFormDialog({ product, open, onOpenChange, onSave }: Produ
             {product ? "Update product information below." : "Fill in the details to create a new product."}
           </DialogDescription>
         </DialogHeader>
+        
+        {/* Debug info - remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-gray-100 p-2 rounded text-xs">
+            <p><strong>Debug:</strong></p>
+            <p>Categories: {categories.length}</p>
+            <p>Subcategories: {subcategories.length}</p>
+            <p>Available Subcategories: {availableSubcategories.length}</p>
+            <p>Selected Category: {formData.category}</p>
+            <p>Selected Subcategory: {formData.subcategory}</p>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -155,7 +281,7 @@ export function ProductFormDialog({ product, open, onOpenChange, onSave }: Produ
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.name}>
+                      <SelectItem key={category.id} value={category.id.toString()}>
                         {category.name}
                       </SelectItem>
                     ))}
@@ -166,16 +292,25 @@ export function ProductFormDialog({ product, open, onOpenChange, onSave }: Produ
                 <Label htmlFor="subcategory">Sub-category</Label>
                 <Select
                   value={formData.subcategory}
-                  onValueChange={(value) => setFormData({ ...formData, subcategory: value })}
-                  disabled={!formData.category}
+                  onValueChange={(value) => {
+                    console.log('Subcategory changed to:', value);
+                    setFormData({ ...formData, subcategory: value });
+                  }}
+                  disabled={!formData.category || availableSubcategories.length === 0}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select sub-category" />
+                    <SelectValue placeholder={
+                      !formData.category 
+                        ? "Select category first" 
+                        : availableSubcategories.length === 0 
+                          ? "No subcategories available"
+                          : "Select sub-category"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {availableSubcategories.map((subcategory) => (
-                      <SelectItem key={subcategory} value={subcategory}>
-                        {subcategory}
+                      <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
+                        {subcategory.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -228,9 +363,20 @@ export function ProductFormDialog({ product, open, onOpenChange, onSave }: Produ
               <Label htmlFor="image">Image URL</Label>
               <Input
                 id="image"
-                value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                value={formData.image_url}
+                onChange={(e) => setFormData({ ...formData, image_url: e.target.value, image: e.target.value })}
                 placeholder="Enter image URL (optional)"
+              />
+            </div>
+
+            {/* Alternative file upload */}
+            <div className="grid gap-2">
+              <Label htmlFor="image-file">Or Upload Image</Label>
+              <Input
+                id="image-file"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
               />
             </div>
 
@@ -250,7 +396,9 @@ export function ProductFormDialog({ product, open, onOpenChange, onSave }: Produ
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">{product ? "Update Product" : "Create Product"}</Button>
+            <Button type="submit" disabled={!formData.name || !formData.category || !formData.subcategory}>
+              {product ? "Update Product" : "Create Product"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

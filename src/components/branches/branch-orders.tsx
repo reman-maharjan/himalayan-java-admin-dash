@@ -30,16 +30,50 @@ export function BranchOrders({ branchId, branchName, onClose }: BranchOrdersProp
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        setIsLoading(true)
-        const data = await orderService.getOrdersByBranch(branchId)
-        setOrders(data)
+        console.log(`[BranchOrders] Fetching orders for branch ID: ${branchId}`);
+        setIsLoading(true);
+        setError(null);
+        
+        // Log current auth status
+        const token = localStorage.getItem('authToken');
+        console.log('[BranchOrders] Auth token exists:', !!token);
+        
+        const data = await orderService.getOrdersByBranch(branchId);
+        console.log('[BranchOrders] Received orders data:', data);
+        
+        if (!data) {
+          console.warn('[BranchOrders] No data received from getOrdersByBranch');
+          setOrders([]);
+          return;
+        }
+        
+        const ordersArray = Array.isArray(data) ? data : [];
+        console.log(`[BranchOrders] Setting ${ordersArray.length} orders`);
+        setOrders(ordersArray);
+        
+        if (ordersArray.length === 0) {
+          console.log('[BranchOrders] No orders found for branch. This might be expected if the branch has no orders.');
+        }
       } catch (err) {
-        const error = err as Error
-        setError('Failed to fetch orders. Please try again.')
+        const error = err as Error;
+        const errorMessage = error.message || 'An unknown error occurred while fetching orders.';
+        
+        console.error('[BranchOrders] Error details:', {
+          error: error.toString(),
+          branchId,
+          stack: error.stack,
+          timestamp: new Date().toISOString()
+        });
+        
+        setError('Failed to fetch orders. Please check your connection and try again.');
+        
         toast.error('Failed to load orders', {
-          description: error.message || 'An error occurred while fetching orders.'
-        })
-        console.error('Error fetching orders:', error)
+          description: errorMessage,
+          action: {
+            label: 'Retry',
+            onClick: () => fetchOrders()
+          }
+        });
       } finally {
         setIsLoading(false)
       }

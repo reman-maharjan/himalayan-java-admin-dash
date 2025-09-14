@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react"
 import { ProductFormDialog } from "./product-form-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import Image from "next/image"
 
 export interface Product {
@@ -21,135 +22,107 @@ export interface Product {
   name: string
   description: string
   category: string
-  subcategory: string
+  subcategory: string | number
   price: number
-  cost: number
-  stock: number
+  cost?: number
+  stock?: number
   status: "active" | "inactive" | "out_of_stock"
-  image?: string
+  image_url?: string | null
+  image_alt?: string | null
+  image?: string | null
   createdAt: string
   updatedAt: string
+  // Additional fields that might be present
+  [key: string]: any
 }
 
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    name: "Himalayan Blend Coffee",
-    description: "Premium coffee blend from the mountains",
-    category: "Coffee",
-    subcategory: "Hot Coffee",
-    price: 250,
-    cost: 120,
-    stock: 45,
-    status: "active",
-    image: "/coffee-cup.png",
-    createdAt: "2024-01-15",
-    updatedAt: "2024-02-20",
-  },
-  {
-    id: "2",
-    name: "Espresso",
-    description: "Strong and rich espresso shot",
-    category: "Coffee",
-    subcategory: "Hot Coffee",
-    price: 180,
-    cost: 80,
-    stock: 32,
-    status: "active",
-    image: "/espresso-shot.png",
-    createdAt: "2024-01-16",
-    updatedAt: "2024-02-18",
-  },
-  {
-    id: "3",
-    name: "Croissant",
-    description: "Buttery and flaky French pastry",
-    category: "Pastries",
-    subcategory: "Breakfast Pastries",
-    price: 120,
-    cost: 60,
-    stock: 0,
-    status: "out_of_stock",
-    image: "/golden-croissant.png",
-    createdAt: "2024-01-17",
-    updatedAt: "2024-02-25",
-  },
-  {
-    id: "4",
-    name: "Green Tea",
-    description: "Organic green tea leaves",
-    category: "Tea",
-    subcategory: "Hot Tea",
-    price: 200,
-    cost: 90,
-    stock: 28,
-    status: "active",
-    image: "/cup-of-green-tea.png",
-    createdAt: "2024-01-18",
-    updatedAt: "2024-02-22",
-  },
-  {
-    id: "5",
-    name: "Club Sandwich",
-    description: "Triple-layered sandwich with chicken",
-    category: "Sandwiches",
-    subcategory: "Hot Sandwiches",
-    price: 350,
-    cost: 180,
-    stock: 15,
-    status: "active",
-    image: "/club-sandwich.png",
-    createdAt: "2024-01-19",
-    updatedAt: "2024-02-10",
-  },
-]
+interface ProductsTableProps {
+  products: Product[]
+  onEdit: (product: Product) => void
+  onDelete: (id: string) => Promise<void>
+  categories: { id: number; name: string }[]
+  subcategories: { id: number; name: string; category: number }[]
+}
 
-export function ProductsTable() {
-  const [products, setProducts] = useState<Product[]>(mockProducts)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+export function ProductsTable({ 
+  products, 
+  onEdit, 
+  onDelete, 
+  categories, 
+  subcategories 
+}: ProductsTableProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isEditConfirmOpen, setIsEditConfirmOpen] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleEdit = (product: Product) => {
     setSelectedProduct(product)
-    setIsEditDialogOpen(true)
+    setIsEditConfirmOpen(true)
   }
 
-  const handleDelete = (productId: string) => {
-    setProducts(products.filter((product) => product.id !== productId))
-  }
-
-  const handleSaveProduct = (productData: Partial<Product>) => {
-    if (selectedProduct) {
-      // Edit existing product
-      setProducts(
-        products.map((product) =>
-          product.id === selectedProduct.id
-            ? { ...product, ...productData, updatedAt: new Date().toISOString().split("T")[0] }
-            : product,
-        ),
-      )
-    } else {
-      // Add new product
-      const newProduct: Product = {
-        id: Date.now().toString(),
-        name: productData.name || "",
-        description: productData.description || "",
-        category: productData.category || "",
-        subcategory: productData.subcategory || "",
-        price: productData.price || 0,
-        cost: productData.cost || 0,
-        stock: productData.stock || 0,
-        status: productData.status || "active",
-        image: productData.image,
-        createdAt: new Date().toISOString().split("T")[0],
-        updatedAt: new Date().toISOString().split("T")[0],
-      }
-      setProducts([...products, newProduct])
-    }
+  const handleAdd = () => {
     setSelectedProduct(null)
-    setIsEditDialogOpen(false)
-    setIsAddDialogOpen(false)
+    setIsAddDialogOpen(true)
+  }
+
+  const handleSaveProduct = async (productData: Partial<Product>) => {
+    try {
+      setIsLoading(true)
+      // The actual save logic will be handled by the parent component
+      // via the onEdit or onAdd callbacks
+      if (selectedProduct) {
+        onEdit({ ...selectedProduct, ...productData } as Product)
+      } else {
+        onEdit(productData as Product)
+      }
+      setIsEditDialogOpen(false)
+      setIsAddDialogOpen(false)
+    } catch (error) {
+      console.error('Error saving product:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product)
+    setIsDeleteDialogOpen(true)
+  }
+
+  // Handle delete action from the dropdown menu
+  const handleDelete = (id: string) => {
+    onDelete(id).catch(console.error);
+  }
+
+  const handleConfirmDelete = async () => {
+    if (productToDelete) {
+      setIsLoading(true)
+      await onDelete(productToDelete.id)
+      setIsLoading(false)
+      setIsDeleteDialogOpen(false)
+      setProductToDelete(null)
+    }
+  }
+
+  const handleConfirmEdit = () => {
+    if (selectedProduct) {
+      setIsEditConfirmOpen(false)
+      setIsEditDialogOpen(true)
+    }
+  }
+
+  // Helper function to safely get cost with a default value
+  const getSafeCost = (cost?: number) => {
+    return cost !== undefined ? cost : 0;
+  }
+
+  // Helper function to get the image URL
+  const getImageUrl = (product: Product) => {
+    return product.image_url || product.image || '/placeholder-product.png';
   }
 
   const getStatusColor = (status: string) => {
@@ -165,7 +138,8 @@ export function ProductsTable() {
     }
   }
 
-  const getStockColor = (stock: number) => {
+  const getStockColor = (stock: number | undefined) => {
+    if (stock === undefined || stock === null) return "text-gray-600"
     if (stock === 0) return "text-red-600"
     if (stock < 10) return "text-yellow-600"
     return "text-green-600"
@@ -217,7 +191,9 @@ export function ProductsTable() {
                 <TableCell className="font-medium">Rs. {product.price}</TableCell>
                 <TableCell className="text-muted-foreground">Rs. {product.cost}</TableCell>
                 <TableCell>
-                  <span className={`font-medium ${getStockColor(product.stock)}`}>{product.stock}</span>
+                  <span className={`font-medium ${getStockColor(product.stock)}`}>
+                    {product.stock ?? 'N/A'}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary" className={getStatusColor(product.status)}>
@@ -226,7 +202,9 @@ export function ProductsTable() {
                 </TableCell>
                 <TableCell>
                   <span className="text-green-600 font-medium">
-                    {(((product.price - product.cost) / product.price) * 100).toFixed(1)}%
+                    {product.cost !== undefined ? 
+                      (((product.price - product.cost) / product.price) * 100).toFixed(1) : 
+                      '0.0'}%
                   </span>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
@@ -264,6 +242,8 @@ export function ProductsTable() {
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
         onSave={handleSaveProduct}
+        categories={categories}
+        subcategories={subcategories}
       />
 
       <ProductFormDialog
@@ -271,7 +251,41 @@ export function ProductsTable() {
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
         onSave={handleSaveProduct}
+        categories={categories}
+        subcategories={subcategories}
       />
+
+      {/* Edit Confirmation Dialog */}
+      <Dialog open={isEditConfirmOpen} onOpenChange={setIsEditConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit product?</DialogTitle>
+            <DialogDescription>
+              You are about to edit {selectedProduct?.name}. Continue?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditConfirmOpen(false)} disabled={isLoading}>Cancel</Button>
+            <Button onClick={handleConfirmEdit} disabled={isLoading}>Continue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete product?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete {productToDelete?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isLoading}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isLoading}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Export the add dialog trigger */}
       <Button onClick={() => setIsAddDialogOpen(true)} className="hidden" id="add-product-trigger">

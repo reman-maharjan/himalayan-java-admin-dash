@@ -38,18 +38,72 @@ export const orderService = {
       const url = `${API_BASE_URL}/api/orders/`;
       const headers = getAuthHeaders();
       console.log('Fetching orders from:', url);
+      console.log('Request headers:', headers);
       
       const response = await fetch(url, {
         headers,
         credentials: 'include',
       });
       
-      await handleApiError(response);
-
-      const apiOrders: ApiOrderResponse[] = await response.json();
+      // Log response status and headers
+      console.log('[getOrders] Response status:', response.status, response.statusText);
+      console.log('[getOrders] Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        console.error('[getOrders] Authentication failed. Redirecting to login.');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('authToken');
+          window.location.href = '/login';
+        }
+        return [];
+      }
+      
+      // Check for other error statuses
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[getOrders] API error (${response.status}):`, errorText);
+        return [];
+      }
+      
+      // Parse JSON response
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('[getOrders] Parsed response data:', responseData);
+      } catch (error) {
+        console.error('[getOrders] Failed to parse response as JSON:', error);
+        return [];
+      }
+      
+      // Handle different response formats
+      let apiOrders: any[] = [];
+      
+      if (Array.isArray(responseData)) {
+        apiOrders = responseData;
+      } else if (responseData && typeof responseData === 'object') {
+        // Check for common pagination formats
+        if (Array.isArray(responseData.results)) {
+          apiOrders = responseData.results;
+        } else if (Array.isArray(responseData.data)) {
+          apiOrders = responseData.data;
+        } else if (responseData.orders && Array.isArray(responseData.orders)) {
+          apiOrders = responseData.orders;
+        } else {
+          // If it's a single order object, wrap it in an array
+          apiOrders = [responseData];
+        }
+      }
+      
+      console.log('Processed orders array:', apiOrders);
+      
+      if (!Array.isArray(apiOrders)) {
+        console.error('Expected an array of orders but got:', apiOrders);
+        return [];
+      }
       
       // Transform the API response to match our frontend types
-      return apiOrders.map((apiOrder): OrderResponse => {
+      return apiOrders.map((apiOrder: any): OrderResponse => {
         // Create a minimal user object with required fields
         const user: User = {
           id: apiOrder.user.id,
@@ -63,7 +117,7 @@ export const orderService = {
         };
 
         // Transform items to match OrderItem type
-        const items: OrderItemType[] = apiOrder.items.map(item => {
+        const items: OrderItemType[] = apiOrder.items.map((item: any) => {
           const product = typeof item.product === 'number' 
             ? { id: item.product, name: 'Product', description: '', price: 0, image: '', image_alt_description: '' }
             : { 
@@ -112,14 +166,66 @@ export const orderService = {
       const url = `${API_BASE_URL}/api/orders/?branch=${encodeURIComponent(branchId)}`;
       const headers = getAuthHeaders();
       
+      console.log(`[getOrdersByBranch] Fetching orders for branch ${branchId} from:`, url);
+      console.log('[getOrdersByBranch] Request headers:', headers);
+      
       const response = await fetch(url, {
         headers,
         credentials: 'include',
       });
 
-      await handleApiError(response);
-
-      const apiOrders: ApiOrderResponse[] = await response.json();
+      // Log response status and headers
+      console.log(`[getOrdersByBranch] Response status:`, response.status, response.statusText);
+      console.log('[getOrdersByBranch] Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        console.error('[getOrdersByBranch] Authentication failed. Redirecting to login.');
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('authToken');
+          window.location.href = '/login';
+        }
+        return [];
+      }
+      
+      // Check for other error statuses
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[getOrdersByBranch] API error (${response.status}):`, errorText);
+        return [];
+      }
+      
+      // Parse JSON response
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('[getOrdersByBranch] Parsed response data:', responseData);
+      } catch (error) {
+        console.error('[getOrdersByBranch] Failed to parse response as JSON:', error);
+        return [];
+      }
+      
+      // Handle different possible response formats
+      let apiOrders: ApiOrderResponse[] = [];
+      
+      if (Array.isArray(responseData)) {
+        // If the response is an array, use it directly
+        apiOrders = responseData;
+        console.log('[getOrdersByBranch] Using direct array response with', apiOrders.length, 'orders');
+      } else if (responseData.results && Array.isArray(responseData.results)) {
+        // If the response has a results array, use that
+        apiOrders = responseData.results;
+        console.log('[getOrdersByBranch] Using results array with', apiOrders.length, 'orders');
+      } else if (responseData.data && Array.isArray(responseData.data)) {
+        // If the response has a data array, use that
+        apiOrders = responseData.data;
+        console.log('[getOrdersByBranch] Using data array with', apiOrders.length, 'orders');
+      } else if (typeof responseData === 'object' && responseData !== null) {
+        // If it's a single order object, wrap it in an array
+        apiOrders = [responseData];
+      }
+      
+      console.log('Processed API orders:', apiOrders);
 
       return apiOrders.map((apiOrder): OrderResponse => {
         const user: User = {

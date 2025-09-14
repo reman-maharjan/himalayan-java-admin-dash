@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RedemptionRequestsTable } from "@/components/rewards/redemption-requests-table"
 import { RewardsCatalogTable } from "@/components/rewards/rewards-catalog-table"
+import { UserRedemptionsTable } from "@/components/rewards/user-redemptions-table"
 import { Plus, Search, Filter, Download, Gift, Users, TrendingUp, Clock, CheckCircle } from "lucide-react"
 
 export default function RedeemPointsPage() {
@@ -85,11 +86,54 @@ export default function RedeemPointsPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="requests" className="space-y-4">
+      <Tabs defaultValue="user-redemptions" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="user-redemptions">User Redemptions</TabsTrigger>
           <TabsTrigger value="requests">Redemption Requests</TabsTrigger>
           <TabsTrigger value="catalog">Rewards Catalog</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="user-redemptions" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Redemptions</CardTitle>
+              <CardDescription>View all user point redemptions and their history</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+                <div className="flex flex-1 gap-4">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Search redemptions..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[140px]">
+                      <Filter className="mr-2 h-4 w-4" />
+                      <SelectValue placeholder="Filter" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="outline">
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+              </div>
+
+              <UserRedemptionsTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="requests" className="space-y-4">
           <Card>

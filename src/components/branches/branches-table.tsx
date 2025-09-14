@@ -12,6 +12,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -20,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { toast } from "sonner"
 import { MoreHorizontal, Edit, Trash2, Eye, Plus, ShoppingCart } from "lucide-react"
 import { BranchFormDialog } from "./branch-form-dialog"
@@ -29,9 +40,13 @@ import { branchService, Branch as BranchType, BranchCreateData } from "@/lib/api
 
 export type Branch = BranchType
 
-// Removed status display as API Branch does not include status
+interface BranchesTableProps {
+  searchQuery?: string
+  statusFilter?: string
+  cityFilter?: string
+}
 
-export function BranchesTable() {
+export function BranchesTable({ searchQuery, statusFilter, cityFilter }: BranchesTableProps) {
   const router = useRouter()
   const [branches, setBranches] = useState<Branch[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -40,8 +55,16 @@ export function BranchesTable() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; branch: Branch | null }>({
+    open: false,
+    branch: null
+  })
+  const [isEditConfirmOpen, setIsEditConfirmOpen] = useState(false)
   const [selectedBranchForOrders, setSelectedBranchForOrders] = useState<Branch | null>(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -67,7 +90,7 @@ export function BranchesTable() {
 
   const handleEdit = (branch: Branch) => {
     setSelectedBranch(branch)
-    setIsFormOpen(true)
+    setIsEditConfirmOpen(true)
   }
 
   const handleView = (branch: Branch) => {
@@ -76,8 +99,7 @@ export function BranchesTable() {
   }
 
   const handleDelete = (branch: Branch) => {
-    setSelectedBranch(branch)
-    setIsDeleteDialogOpen(true)
+    setDeleteDialog({ open: true, branch })
   }
 
   const handleViewOrders = (branch: Branch) => {
@@ -108,15 +130,14 @@ export function BranchesTable() {
     }
   }
 
-  const handleDeleteBranch = async () => {
-    if (!selectedBranch) return
+  const confirmDeleteBranch = async () => {
+    const branch = deleteDialog.branch
+    if (!branch) return
     
     try {
       setIsDeleting(true)
-      await branchService.deleteBranch(selectedBranch.id)
-      setBranches(branches.filter((branch) => branch.id !== selectedBranch.id))
-      setIsDeleteDialogOpen(false)
-      setSelectedBranch(null)
+      await branchService.deleteBranch(branch.id)
+      setBranches(branches.filter((b) => b.id !== branch.id))
       toast.success('Branch deleted successfully')
     } catch (error) {
       const err = error as Error
@@ -126,10 +147,39 @@ export function BranchesTable() {
       })
     } finally {
       setIsDeleting(false)
+      setDeleteDialog({ open: false, branch: null })
     }
   }
 
-  // No status color mapping; Branch type has no status
+  const handleConfirmEdit = () => {
+    if (selectedBranch) {
+      setIsEditConfirmOpen(false)
+      setIsFormOpen(true)
+    }
+  }
+
+  // Filter branches based on search and filter criteria
+  const filteredBranches = branches.filter(branch => {
+    const matchesSearch = !searchQuery || 
+      branch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      branch.address.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    // Since the API Branch doesn't have status, we'll skip status filtering for now
+    // You can add status filtering when your API supports it
+    
+    return matchesSearch
+  })
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredBranches.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedBranches = filteredBranches.slice(startIndex, endIndex)
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter, cityFilter])
 
   if (isLoading) {
     return (
@@ -214,21 +264,20 @@ export function BranchesTable() {
               <TableHead>Name</TableHead>
               <TableHead>Address</TableHead>
               <TableHead>Location</TableHead>
-              
               <TableHead>Created At</TableHead>
               <TableHead>Updated At</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {branches.length === 0 ? (
+            {paginatedBranches.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  {isLoading ? 'Loading branches...' : 'No branches found. Create your first branch to get started.'}
+                  {isLoading ? 'Loading branches...' : searchQuery ? 'No branches match your search criteria.' : 'No branches found. Create your first branch to get started.'}
                 </TableCell>
               </TableRow>
             ) : (
-              branches.map((branch) => (
+              paginatedBranches.map((branch) => (
                 <TableRow key={branch.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium">
                     {branch.name}
@@ -237,12 +286,19 @@ export function BranchesTable() {
                     {branch.address}
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-muted-foreground">
-                      Lat: {branch.latitude}<br />
-                      Lng: {branch.longitude}
-                    </div>
+                    {branch.latitude && branch.longitude ? (
+                      <a
+                        href={`https://www.google.com/maps?q=${branch.latitude},${branch.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        View on Map
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">No location data</span>
+                    )}
                   </TableCell>
-                  
                   <TableCell>
                     <div className="flex flex-col">
                       <span>{new Date(branch.created_at).toLocaleDateString()}</span>
@@ -308,6 +364,58 @@ export function BranchesTable() {
         </Table>
       </div>
 
+      {/* Pagination */}
+      {filteredBranches.length > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredBranches.length)} of {filteredBranches.length} branches
+          </div>
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (currentPage > 1) setCurrentPage(currentPage - 1)
+                    }}
+                    className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(page)
+                      }}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                    }}
+                    className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </div>
+      )}
+
       <BranchFormDialog
         open={isFormOpen}
         onOpenChange={(open) => {
@@ -331,20 +439,47 @@ export function BranchesTable() {
         branch={selectedBranch}
       />
 
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      {/* Delete Confirmation Alert Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, branch: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this branch?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The branch "{deleteDialog.branch?.name}" at "{deleteDialog.branch?.address}" will be permanently deleted from the system.
+              <span className="block mt-2 font-medium text-destructive">
+                Warning: All data associated with this branch will be permanently removed.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteDialog({ open: false, branch: null })}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteBranch} 
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Branch'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={isEditConfirmOpen} onOpenChange={setIsEditConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Branch</DialogTitle>
+            <DialogTitle>Edit Branch</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this branch? This action cannot be undone.
+              You are about to edit {selectedBranch?.name}. Continue?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsEditConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteBranch} disabled={isDeleting}>
-              {isDeleting ? 'Deleting...' : 'Delete'}
+            <Button onClick={handleConfirmEdit}>
+              Continue
             </Button>
           </DialogFooter>
         </DialogContent>

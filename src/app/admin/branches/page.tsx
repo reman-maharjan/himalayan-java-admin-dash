@@ -1,1 +1,1 @@
-export { default } from "@/components/pages/admin/branches"
+export { default } from "@/components/pages/admin/BranchesPage"

@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { Plus, Search, Layers, Package, Trash2, Edit, Loader2, RefreshCw, Eye, TrendingUp } from "lucide-react"
 import { productService, type SubCategory, type ProductCategory } from "@/lib/api/products"
 import { toast } from "sonner"
@@ -21,10 +23,18 @@ export default function SubcategoriesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentSubcategory, setCurrentSubcategory] = useState<Partial<SubCategory> | null>(null)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; subcategory: SubCategory | null }>({
+    open: false,
+    subcategory: null
+  })
   const [formData, setFormData] = useState({
     name: '',
     category: ''
   })
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -102,16 +112,23 @@ export default function SubcategoriesPage() {
     setIsDialogOpen(true)
   }
 
-  const handleDeleteSubcategory = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this subcategory?')) return
+  const handleDeleteSubcategory = (subcategory: SubCategory) => {
+    setDeleteDialog({ open: true, subcategory })
+  }
+
+  const confirmDeleteSubcategory = async () => {
+    const subcategory = deleteDialog.subcategory
+    if (!subcategory) return
     
     try {
-      await productService.deleteSubcategory(id)
-      setSubcategories(subcategories.filter(sub => sub.id !== id))
+      await productService.deleteSubcategory(subcategory.id)
+      setSubcategories(subcategories.filter(sub => sub.id !== subcategory.id))
       toast.success('Subcategory deleted successfully')
     } catch (err) {
       console.error('Failed to delete subcategory:', err)
       toast.error('Failed to delete subcategory')
+    } finally {
+      setDeleteDialog({ open: false, subcategory: null })
     }
   }
 
@@ -161,6 +178,17 @@ export default function SubcategoriesPage() {
     subcategory.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     categories.find(c => c.id === subcategory.category)?.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredSubcategories.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedSubcategories = filteredSubcategories.slice(startIndex, endIndex)
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   return (
     <div className="space-y-6">
@@ -247,7 +275,27 @@ export default function SubcategoriesPage() {
         </DialogContent>
       </Dialog>
 
-<div className="grid gap-4 md:grid-cols-4">
+      {/* Delete Confirmation Alert Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, subcategory: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this subcategory?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The subcategory "{deleteDialog.subcategory?.name}" will be permanently deleted from the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteDialog({ open: false, subcategory: null })}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteSubcategory} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Subcategory
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Sub-categories</CardTitle>
@@ -371,7 +419,7 @@ export default function SubcategoriesPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredSubcategories.map((subcategory) => (
+                  {paginatedSubcategories.map((subcategory) => (
                     <tr key={subcategory.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {subcategory.id}
@@ -398,7 +446,7 @@ export default function SubcategoriesPage() {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteSubcategory(subcategory.id)}
+                          onClick={() => handleDeleteSubcategory(subcategory)}
                         >
                           <Trash2 className="h-4 w-4" />
                           <span className="sr-only">Delete</span>
@@ -411,6 +459,58 @@ export default function SubcategoriesPage() {
             </div>
           )}
         </CardContent>
+        
+        {/* Pagination */}
+        {filteredSubcategories.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredSubcategories.length)} of {filteredSubcategories.length} subcategories
+            </div>
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (currentPage > 1) setCurrentPage(currentPage - 1)
+                      }}
+                      className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setCurrentPage(page)
+                        }}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                      }}
+                      className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </div>
+        )}
       </Card>
     </div>
   )

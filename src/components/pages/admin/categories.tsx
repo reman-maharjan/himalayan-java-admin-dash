@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { Plus, Search, Loader2, AlertCircle, RefreshCw, Tags, Package, TrendingUp, Trash2, Edit } from "lucide-react"
 import { productService } from "@/lib/api/products"
 import { toast } from "sonner"
@@ -33,6 +35,10 @@ export default function CategoriesPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentCategory, setCurrentCategory] = useState<Partial<Category & ProductCategory> | null>(null)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; category: (Category | ProductCategory) | null }>({
+    open: false,
+    category: null
+  })
   const [formData, setFormData] = useState<{
     name: string;
     description: string;
@@ -42,6 +48,10 @@ export default function CategoriesPage() {
     description: '',
     status: 'active'
   })
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
 
   const resetForm = () => {
     setFormData({
@@ -136,24 +146,41 @@ export default function CategoriesPage() {
     setIsDialogOpen(true)
   }
 
-  const handleDeleteCategory = async (id: number) => {
-    if (!window.confirm('Are you sure you want to delete this category?')) return
-    const response = await productService.deleteCategory(id)
-    try {
+  const handleDeleteCategory = (category: Category | ProductCategory) => {
+    setDeleteDialog({ open: true, category })
+  }
 
+  const confirmDeleteCategory = async () => {
+    const category = deleteDialog.category
+    if (!category) return
+    
+    try {
       // TODO: Add delete category API call when available
-      // await productService.deleteCategory(id)
-      setCategories(categories.filter(category => category.id !== id))
+      // await productService.deleteCategory(category.id)
+      setCategories(categories.filter(cat => cat.id !== category.id))
       toast.success('Category deleted successfully')
     } catch (err) {
       console.error('Failed to delete category:', err)
       toast.error('Failed to delete category')
+    } finally {
+      setDeleteDialog({ open: false, category: null })
     }
   }
 
   const filteredCategories = categories.filter(category => 
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredCategories.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedCategories = filteredCategories.slice(startIndex, endIndex)
+
+  // Reset to first page when search changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   return (
     <div className="space-y-6">
@@ -247,7 +274,7 @@ export default function CategoriesPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredCategories.map((category) => (
+                  {paginatedCategories.map((category) => (
                     <tr key={category.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{category.name}</div>
@@ -276,7 +303,7 @@ export default function CategoriesPage() {
                           className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleDeleteCategory(category.id)
+                            handleDeleteCategory(category)
                           }}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -290,6 +317,58 @@ export default function CategoriesPage() {
             </div>
           )}
         </CardContent>
+        
+        {/* Pagination */}
+        {filteredCategories.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredCategories.length)} of {filteredCategories.length} categories
+            </div>
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (currentPage > 1) setCurrentPage(currentPage - 1)
+                      }}
+                      className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setCurrentPage(page)
+                        }}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                      }}
+                      className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* Add/Edit Category Dialog */}
@@ -350,6 +429,31 @@ export default function CategoriesPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Alert Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, category: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this category?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The category "{deleteDialog.category?.name}" will be permanently deleted from the system.
+              {deleteDialog.category?.product_count && deleteDialog.category.product_count > 0 && (
+                <span className="block mt-2 font-medium text-destructive">
+                  Warning: This category has {deleteDialog.category.product_count} product{deleteDialog.category.product_count === 1 ? '' : 's'} assigned to it.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteDialog({ open: false, category: null })}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteCategory} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Category
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

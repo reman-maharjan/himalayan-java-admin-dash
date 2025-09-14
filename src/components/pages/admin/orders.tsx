@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { Search, Filter, Download, ShoppingCart, Clock, CheckCircle, TrendingUp, DollarSign, Loader2, AlertCircle } from "lucide-react"
 import { orderService } from "@/lib/api/orders"
 import { Order, OrderStatus, OrderResponse } from "@/types/orderType"
@@ -23,6 +24,10 @@ export default function OrdersPage() {
     completed: 0,
     revenue: 0
   })
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -81,6 +86,17 @@ export default function OrdersPage() {
     
     return matchesSearch && matchesStatus
   })
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedOrders = filteredOrders.slice(startIndex, endIndex)
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter])
 
   // Format date for display
   const formatDate = (dateString: string) => {
@@ -285,7 +301,7 @@ export default function OrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredOrders.map((order) => (
+                  {paginatedOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         #{order.id}
@@ -344,6 +360,58 @@ export default function OrdersPage() {
             </div>
           )}
         </CardContent>
+        
+        {/* Pagination */}
+        {filteredOrders.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length} orders
+            </div>
+            {totalPages > 1 && (
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (currentPage > 1) setCurrentPage(currentPage - 1)
+                      }}
+                      className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setCurrentPage(page)
+                        }}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ))}
+                  
+                  <PaginationItem>
+                    <PaginationNext 
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                      }}
+                      className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            )}
+          </div>
+        )}
       </Card>
     </div>
   )

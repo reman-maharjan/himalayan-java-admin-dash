@@ -74,15 +74,26 @@ export function LoginForm() {
     }
 
     try {
-      const { success, error } = await authService.verifyOtp(formData.phoneNumber, formData.otp);
+      console.log('Verifying OTP...');
+      const { success, data, error } = await authService.verifyOtp(formData.phoneNumber, formData.otp);
       
       if (!success) {
+        console.error('OTP verification failed:', error);
         setError(error?.detail || "Invalid OTP. Please try again.");
         return;
       }
 
+      console.log('OTP verification successful, user data:', data);
+      
+      // Store user data in localStorage if available
+      if (data?.user) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+      }
+
       // Redirect to admin dashboard on successful verification
+      console.log('Redirecting to /admin');
       router.push("/admin");
+      router.refresh(); // Ensure the page refreshes to update auth state
     } catch (err) {
       console.error('OTP verification error:', err);
       setError("An unexpected error occurred. Please try again.");

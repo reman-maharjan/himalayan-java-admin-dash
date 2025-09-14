@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { BranchesTable } from "@/components/branches/branches-table"
-import { Plus, Search, Filter, Download, MapPin, Users, DollarSign, Star, TrendingUp } from "lucide-react"
+import { Search, Filter, Download } from "lucide-react"
 import { withAuth } from "@/components/auth/RequireAuth"
 
 const BranchesPage = () => {
@@ -81,3 +81,5 @@ const BranchesPage = () => {
     </div>
   )
 }
+
+export default withAuth(BranchesPage);

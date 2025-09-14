@@ -1,6 +1,23 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  images: {
+    domains: [
+      'jamaica-reflected-pd-combine.trycloudflare.com',
+      'localhost',
+      '127.0.0.1'
+    ],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+  },
   async headers() {
     return [
       {

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { MoreHorizontal, Edit, Trash2, Eye, Mail, Phone } from "lucide-react"
 import { UserFormDialog } from "./user-form-dialog"
 import { UserDetailsDialog } from "./user-details-dialog"
@@ -32,80 +33,16 @@ export interface User {
   avatar?: string
 }
 
-const mockUsers: User[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john.doe@email.com",
-    phone: "+977-9841234567",
-    role: "customer",
-    status: "active",
-    joinDate: "2024-01-15",
-    lastLogin: "2024-03-01",
-    totalOrders: 23,
-    totalSpent: 12450,
-    loyaltyPoints: 1245,
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane.smith@email.com",
-    phone: "+977-9851234567",
-    role: "customer",
-    status: "active",
-    joinDate: "2024-02-20",
-    lastLogin: "2024-03-02",
-    totalOrders: 15,
-    totalSpent: 8900,
-    loyaltyPoints: 890,
-  },
-  {
-    id: "3",
-    name: "Mike Johnson",
-    email: "mike.johnson@himalayanjava.com",
-    phone: "+977-9861234567",
-    role: "staff",
-    status: "active",
-    joinDate: "2023-11-10",
-    lastLogin: "2024-03-02",
-    totalOrders: 0,
-    totalSpent: 0,
-    loyaltyPoints: 0,
-  },
-  {
-    id: "4",
-    name: "Sarah Wilson",
-    email: "sarah.wilson@email.com",
-    phone: "+977-9871234567",
-    role: "customer",
-    status: "suspended",
-    joinDate: "2024-01-05",
-    lastLogin: "2024-02-28",
-    totalOrders: 5,
-    totalSpent: 2300,
-    loyaltyPoints: 230,
-  },
-  {
-    id: "5",
-    name: "Admin User",
-    email: "admin@himalayanjava.com",
-    phone: "+977-9881234567",
-    role: "admin",
-    status: "active",
-    joinDate: "2023-01-01",
-    lastLogin: "2024-03-02",
-    totalOrders: 0,
-    totalSpent: 0,
-    loyaltyPoints: 0,
-  },
-]
-
 export function UsersTable() {
-  const [users, setUsers] = useState<User[]>(mockUsers)
+  const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
 
   const handleEdit = (user: User) => {
     setSelectedUser(user)
@@ -173,6 +110,12 @@ export function UsersTable() {
     }
   }
 
+  // Pagination calculations
+  const totalPages = Math.ceil(users.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedUsers = users.slice(startIndex, endIndex)
+
   return (
     <>
       <div className="rounded-md border">
@@ -191,7 +134,7 @@ export function UsersTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
+            {paginatedUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -266,6 +209,58 @@ export function UsersTable() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {users.length > 0 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(endIndex, users.length)} of {users.length} users
+          </div>
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (currentPage > 1) setCurrentPage(currentPage - 1)
+                    }}
+                    className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(page)
+                      }}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                    }}
+                    className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </div>
+      )}
 
       <UserFormDialog
         user={selectedUser}

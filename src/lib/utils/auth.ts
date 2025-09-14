@@ -16,10 +16,16 @@ export const getAuthHeaders = (): HeadersInit => {
   };
   
   const token = getAuthToken();
+  console.log('Auth token from storage:', token ? 'Token exists' : 'No token found');
+  
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+    console.log('Authorization header set with token');
+  } else {
+    console.warn('No authentication token found. Requests may be unauthorized.');
   }
   
+  console.log('Request headers:', headers);
   return headers;
 };
 

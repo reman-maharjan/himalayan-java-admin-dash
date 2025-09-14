@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { MoreHorizontal, Check, X, Eye, Gift } from "lucide-react"
 import { RedemptionDetailsDialog } from "./redemption-details-dialog"
 
@@ -42,105 +43,14 @@ export interface RedemptionRequest {
   notes?: string
 }
 
-const mockRedemptionRequests: RedemptionRequest[] = [
-  {
-    id: "1",
-    customer: {
-      id: "1",
-      name: "John Doe",
-      email: "john.doe@email.com",
-      phone: "+977-9841234567",
-      totalPoints: 1245,
-    },
-    reward: {
-      id: "1",
-      name: "Free Coffee",
-      pointsRequired: 500,
-      category: "Beverages",
-      description: "Any regular coffee drink",
-    },
-    pointsUsed: 500,
-    status: "pending",
-    requestDate: "2024-03-02T10:30:00Z",
-    branch: "Thamel Branch",
-    notes: "Customer prefers Himalayan Blend",
-  },
-  {
-    id: "2",
-    customer: {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane.smith@email.com",
-      phone: "+977-9851234567",
-      totalPoints: 890,
-    },
-    reward: {
-      id: "2",
-      name: "Free Pastry",
-      pointsRequired: 300,
-      category: "Food",
-      description: "Any pastry from our selection",
-    },
-    pointsUsed: 300,
-    status: "approved",
-    requestDate: "2024-03-02T09:15:00Z",
-    processedDate: "2024-03-02T09:30:00Z",
-    processedBy: "Admin User",
-    branch: "Durbar Marg Branch",
-  },
-  {
-    id: "3",
-    customer: {
-      id: "3",
-      name: "Mike Johnson",
-      email: "mike.johnson@email.com",
-      phone: "+977-9861234567",
-      totalPoints: 2100,
-    },
-    reward: {
-      id: "3",
-      name: "10% Discount",
-      pointsRequired: 200,
-      category: "Discounts",
-      description: "10% off on next purchase",
-    },
-    pointsUsed: 200,
-    status: "completed",
-    requestDate: "2024-03-01T14:20:00Z",
-    processedDate: "2024-03-01T14:25:00Z",
-    processedBy: "Branch Manager",
-    branch: "Patan Branch",
-  },
-  {
-    id: "4",
-    customer: {
-      id: "4",
-      name: "Sarah Wilson",
-      email: "sarah.wilson@email.com",
-      phone: "+977-9871234567",
-      totalPoints: 230,
-    },
-    reward: {
-      id: "4",
-      name: "Free Sandwich",
-      pointsRequired: 800,
-      category: "Food",
-      description: "Any sandwich from our menu",
-    },
-    pointsUsed: 800,
-    status: "rejected",
-    requestDate: "2024-03-01T11:45:00Z",
-    processedDate: "2024-03-01T12:00:00Z",
-    processedBy: "Admin User",
-    branch: "Thamel Branch",
-    notes: "Insufficient points available",
-  },
-]
-
 export function RedemptionRequestsTable() {
-  const [requests, setRequests] = useState<RedemptionRequest[]>(mockRedemptionRequests)
+  const [requests, setRequests] = useState<RedemptionRequest[]>([])
   const [selectedRequest, setSelectedRequest] = useState<RedemptionRequest | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
 
   const handleViewDetails = (request: RedemptionRequest) => {
     setSelectedRequest(request)
@@ -201,6 +111,12 @@ export function RedemptionRequestsTable() {
     })
   }
 
+  // Pagination calculations
+  const totalPages = Math.ceil(requests.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedRequests = requests.slice(startIndex, endIndex)
+
   return (
     <>
       <div className="rounded-md border">
@@ -217,7 +133,7 @@ export function RedemptionRequestsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {requests.map((request) => (
+            {paginatedRequests.map((request) => (
               <TableRow key={request.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -294,6 +210,58 @@ export function RedemptionRequestsTable() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {requests.length > 0 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(endIndex, requests.length)} of {requests.length} requests
+          </div>
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (currentPage > 1) setCurrentPage(currentPage - 1)
+                    }}
+                    className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(page)
+                      }}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                    }}
+                    className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </div>
+      )}
 
       <RedemptionDetailsDialog
         request={selectedRequest}

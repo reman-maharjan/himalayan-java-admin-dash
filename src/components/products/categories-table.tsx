@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, Edit, Trash2, Package } from "lucide-react"
 import { CategoryFormDialog } from "./category-form-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export interface Category {
   id: string
@@ -25,67 +26,39 @@ export interface Category {
   updatedAt: string
 }
 
-const mockCategories: Category[] = [
-  {
-    id: "1",
-    name: "Coffee",
-    description: "All types of coffee beverages",
-    status: "active",
-    productCount: 25,
-    createdAt: "2024-01-15",
-    updatedAt: "2024-02-20",
-  },
-  {
-    id: "2",
-    name: "Tea",
-    description: "Various tea selections",
-    status: "active",
-    productCount: 18,
-    createdAt: "2024-01-16",
-    updatedAt: "2024-02-18",
-  },
-  {
-    id: "3",
-    name: "Pastries",
-    description: "Fresh baked goods and pastries",
-    status: "active",
-    productCount: 32,
-    createdAt: "2024-01-17",
-    updatedAt: "2024-02-25",
-  },
-  {
-    id: "4",
-    name: "Sandwiches",
-    description: "Freshly made sandwiches",
-    status: "active",
-    productCount: 15,
-    createdAt: "2024-01-18",
-    updatedAt: "2024-02-22",
-  },
-  {
-    id: "5",
-    name: "Merchandise",
-    description: "Himalayan Java branded items",
-    status: "inactive",
-    productCount: 8,
-    createdAt: "2024-01-19",
-    updatedAt: "2024-02-10",
-  },
-]
-
 export function CategoriesTable() {
-  const [categories, setCategories] = useState<Category[]>(mockCategories)
+  const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isEditConfirmOpen, setIsEditConfirmOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
 
   const handleEdit = (category: Category) => {
     setSelectedCategory(category)
-    setIsEditDialogOpen(true)
+    setIsEditConfirmOpen(true)
   }
 
   const handleDelete = (categoryId: string) => {
-    setCategories(categories.filter((category) => category.id !== categoryId))
+    const toDelete = categories.find(c => c.id === categoryId) || null
+    setCategoryToDelete(toDelete)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = () => {
+    if (categoryToDelete) {
+      setCategories(categories.filter((category) => category.id !== categoryToDelete.id))
+      setIsDeleteDialogOpen(false)
+      setCategoryToDelete(null)
+    }
+  }
+
+  const handleConfirmEdit = () => {
+    if (selectedCategory) {
+      setIsEditConfirmOpen(false)
+      setIsEditDialogOpen(true)
+    }
   }
 
   const handleSaveCategory = (categoryData: Partial<Category>) => {
@@ -213,6 +186,38 @@ export function CategoriesTable() {
         onOpenChange={setIsAddDialogOpen}
         onSave={handleSaveCategory}
       />
+
+      {/* Edit Confirmation Dialog */}
+      <Dialog open={isEditConfirmOpen} onOpenChange={setIsEditConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit category?</DialogTitle>
+            <DialogDescription>
+              You are about to edit {selectedCategory?.name}. Continue?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditConfirmOpen(false)}>Cancel</Button>
+            <Button onClick={handleConfirmEdit}>Continue</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete category?</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete {categoryToDelete?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Export the add dialog trigger */}
       <Button onClick={() => setIsAddDialogOpen(true)} className="hidden" id="add-category-trigger">

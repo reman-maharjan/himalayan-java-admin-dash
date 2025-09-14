@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { MoreHorizontal, Edit, Trash2, Gift } from "lucide-react"
 import { RewardFormDialog } from "./reward-form-dialog"
 
@@ -27,69 +28,15 @@ export interface Reward {
   updatedAt: string
 }
 
-const mockRewards: Reward[] = [
-  {
-    id: "1",
-    name: "Free Coffee",
-    description: "Any regular coffee drink",
-    category: "beverages",
-    pointsRequired: 500,
-    status: "active",
-    redemptionCount: 234,
-    createdAt: "2024-01-15",
-    updatedAt: "2024-02-20",
-  },
-  {
-    id: "2",
-    name: "Free Pastry",
-    description: "Any pastry from our selection",
-    category: "food",
-    pointsRequired: 300,
-    status: "active",
-    redemptionCount: 156,
-    createdAt: "2024-01-16",
-    updatedAt: "2024-02-18",
-  },
-  {
-    id: "3",
-    name: "10% Discount",
-    description: "10% off on next purchase",
-    category: "discounts",
-    pointsRequired: 200,
-    status: "active",
-    redemptionCount: 89,
-    createdAt: "2024-01-17",
-    updatedAt: "2024-02-25",
-  },
-  {
-    id: "4",
-    name: "Free Sandwich",
-    description: "Any sandwich from our menu",
-    category: "food",
-    pointsRequired: 800,
-    status: "active",
-    redemptionCount: 67,
-    createdAt: "2024-01-18",
-    updatedAt: "2024-02-22",
-  },
-  {
-    id: "5",
-    name: "Coffee Mug",
-    description: "Himalayan Java branded coffee mug",
-    category: "merchandise",
-    pointsRequired: 1000,
-    status: "inactive",
-    redemptionCount: 23,
-    createdAt: "2024-01-19",
-    updatedAt: "2024-02-10",
-  },
-]
-
 export function RewardsCatalogTable() {
-  const [rewards, setRewards] = useState<Reward[]>(mockRewards)
+  const [rewards, setRewards] = useState<Reward[]>([])
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
 
   const handleEdit = (reward: Reward) => {
     setSelectedReward(reward)
@@ -156,6 +103,12 @@ export function RewardsCatalogTable() {
     }
   }
 
+  // Pagination calculations
+  const totalPages = Math.ceil(rewards.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedRewards = rewards.slice(startIndex, endIndex)
+
   return (
     <>
       <div className="rounded-md border">
@@ -172,7 +125,7 @@ export function RewardsCatalogTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rewards.map((reward) => (
+            {paginatedRewards.map((reward) => (
               <TableRow key={reward.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
@@ -226,6 +179,58 @@ export function RewardsCatalogTable() {
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {rewards.length > 0 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t">
+          <div className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(endIndex, rewards.length)} of {rewards.length} rewards
+          </div>
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (currentPage > 1) setCurrentPage(currentPage - 1)
+                    }}
+                    className={currentPage <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setCurrentPage(page)
+                      }}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1)
+                    }}
+                    className={currentPage >= totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+        </div>
+      )}
 
       <RewardFormDialog
         reward={selectedReward}

@@ -72,24 +72,36 @@ export const authService = {
         }),
       });
 
+      const data = await response.json().catch(() => ({}));
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
         return { 
           success: false, 
           error: { 
-            detail: errorData.detail || 
-                   errorData.message || 
-                   Object.values(errorData).flat().join(' ') || 
+            detail: data.detail || 
+                   data.message || 
+                   (typeof data === 'object' ? Object.values(data).flat().join(' ') : 'Invalid OTP') || 
                    'Invalid OTP' 
           } 
         };
       }
 
-      const data = await response.json();
+      console.log('OTP verification response:', data);
       
-      // Only store token if it's provided in the response
+      // Store the token in localStorage if it exists in the response
       if (data.token) {
+        console.log('Storing auth token in localStorage');
         localStorage.setItem('authToken', data.token);
+      } else if (data.access) {
+        // Handle case where the token is named 'access' instead of 'token'
+        console.log('Storing access token in localStorage');
+        localStorage.setItem('authToken', data.access);
+      } else {
+        console.warn('No token found in the OTP verification response');
+        return {
+          success: false,
+          error: { detail: 'Authentication token not found in the response' }
+        };
       }
 
       return { success: true, data };
