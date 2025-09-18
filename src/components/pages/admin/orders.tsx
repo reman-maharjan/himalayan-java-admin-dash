@@ -15,6 +15,7 @@ export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all")
   const [orders, setOrders] = useState<OrderResponse[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState({
@@ -27,7 +28,7 @@ export default function OrdersPage() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
+  const [itemsPerPage] = useState(10)
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -35,28 +36,25 @@ export default function OrdersPage() {
         setLoading(true)
         setError(null)
         
-        // Fetch all orders
-        const data = await orderService.getOrders()
+        // Fetch paginated orders from server
+        const { orders: pageOrders, count } = await orderService.getOrdersPaginated({
+          page: currentPage,
+          page_size: itemsPerPage,
+          search: searchQuery || undefined,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+        })
         
-        // Transform the data to match our OrderResponse type
-        const transformedOrders = data.map(order => ({
-          ...order,
-          created_at: order.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString(),
-          customer_name: order.user.full_name || 'Guest',
-          customer_phone: order.user.phone_number || 'N/A',
-          items: order.items || []
-        }))
-        
-        setOrders(transformedOrders)
+        setOrders(pageOrders)
+        setTotalCount(count)
         
         // Calculate statistics
         const today = new Date().toISOString().split('T')[0]
-        const completedOrders = transformedOrders.filter(order => order.order_status === 'completed')
+        const completedOrders = pageOrders.filter(order => order.order_status === 'completed')
 
         setStats({
-          total: transformedOrders.length,
-          pending: transformedOrders.filter(o => o.order_status === 'pending').length,
-          processing: transformedOrders.filter(o => o.order_status === 'processing').length,
+          total: count,
+          pending: pageOrders.filter(o => o.order_status === 'pending').length,
+          processing: pageOrders.filter(o => o.order_status === 'processing').length,
           completed: completedOrders.length,
           revenue: 0
         });
@@ -73,25 +71,16 @@ export default function OrdersPage() {
     }
 
     fetchOrders()
-  }, [])
+  }, [currentPage, itemsPerPage, searchQuery, statusFilter])
 
-  // Filter orders based on search and status
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = !searchQuery || 
-      order.id?.toString().includes(searchQuery) ||
-      order.user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.user.phone_number?.includes(searchQuery)
-    
-    const matchesStatus = statusFilter === 'all' || order.order_status === statusFilter
-    
-    return matchesSearch && matchesStatus
-  })
+  // Server-side filtering; orders already filtered
+  const filteredOrders = orders
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage)
+  // Pagination calculations (server-side)
+  const totalPages = Math.ceil(totalCount / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const paginatedOrders = filteredOrders.slice(startIndex, endIndex)
+  const paginatedOrders = filteredOrders
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -242,7 +231,7 @@ export default function OrdersPage() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="confirmed">Confirmed</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
@@ -259,7 +248,7 @@ export default function OrdersPage() {
             <div>
               <CardTitle>Recent Orders</CardTitle>
               <CardDescription>
-                {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} found
+                {totalCount} {totalCount === 1 ? 'order' : 'orders'} found
               </CardDescription>
             </div>
           </div>
@@ -365,7 +354,7 @@ export default function OrdersPage() {
         {filteredOrders.length > 0 && (
           <div className="flex items-center justify-between px-6 py-4 border-t">
             <div className="text-sm text-muted-foreground">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length} orders
+              Showing {Math.min(startIndex + 1, Math.max(totalCount, 1))} to {Math.min(endIndex, totalCount)} of {totalCount} orders
             </div>
             {totalPages > 1 && (
               <Pagination>

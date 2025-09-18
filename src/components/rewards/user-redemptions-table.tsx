@@ -15,11 +15,12 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { MoreHorizontal, Eye, Gift, User, Calendar } from "lucide-react"
-import { UserRedeemWithDetails } from "@/types/redeemType"
+import { UserRedeemWithDetails, Redeem } from "@/types/redeemType"
 import { userRedeemApi } from "@/lib/api/redeems"
 
 export function UserRedemptionsTable() {
   const [userRedemptions, setUserRedemptions] = useState<UserRedeemWithDetails[]>([])
+  const [redeems, setRedeems] = useState<Redeem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -39,7 +40,6 @@ export function UserRedemptionsTable() {
         setLoading(false)
       }
     }
-
     fetchUserRedemptions()
   }, [])
 
@@ -74,7 +74,7 @@ export function UserRedemptionsTable() {
           <TableHeader>
             <TableRow>
               <TableHead>User</TableHead>
-              <TableHead>Reward</TableHead>
+              <TableHead>Sub-Category</TableHead>
               <TableHead>Points Used</TableHead>
               <TableHead>Redemption Date</TableHead>
               <TableHead className="w-[70px]">Actions</TableHead>
@@ -135,7 +135,7 @@ export function UserRedemptionsTable() {
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
-            <TableHead>Reward</TableHead>
+            <TableHead>Sub-Category</TableHead>
             <TableHead>Points Used</TableHead>
             <TableHead>Redemption Date</TableHead>
             <TableHead className="w-[70px]">Actions</TableHead>
@@ -154,31 +154,31 @@ export function UserRedemptionsTable() {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src="/placeholder.svg" alt={redemption.user.full_name} />
+                      <AvatarImage 
+                        src="/placeholder.svg" 
+                        alt={redemption.user_full_name || 'User'} 
+                      />
                       <AvatarFallback>
-                        {getInitials(redemption.user.full_name)}
+                        {getInitials(redemption.user_full_name || 'U')}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <div className="font-medium">{redemption.user.full_name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {redemption.user.email}
+                    <div> 
+                      <div className="font-medium">
+                        {redemption.user_full_name || 'Unknown User'}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {redemption.user.redeem_points} points remaining
+                        {redemption.points_used || 0} points used
                       </div>
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-md bg-accent/10 flex items-center justify-center">
-                      <Gift className="h-4 w-4 text-accent" />
-                    </div>
+                  
                     <div>
-                      <div className="font-medium">{redemption.redeem_name}</div>
+                      <div className="font-medium">{redemption.redeem.sub_category_name}</div>
                       <div className="text-sm text-muted-foreground">
-                        Required: {redemption.redeem_details?.redeem_points || 'N/A'} points
+                        {redemption.redeem.category_name}
                       </div>
                     </div>
                   </div>

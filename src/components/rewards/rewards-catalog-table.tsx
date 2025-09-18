@@ -129,9 +129,7 @@ export function RewardsCatalogTable() {
               <TableRow key={reward.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-md bg-accent/10 flex items-center justify-center">
-                      <Gift className="h-4 w-4 text-accent" />
-                    </div>
+                   
                     <div>
                       <div className="font-medium">{reward.name}</div>
                       <div className="text-sm text-muted-foreground max-w-[200px] truncate">{reward.description}</div>

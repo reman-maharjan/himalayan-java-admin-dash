@@ -11,8 +11,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Bell, Settings, LogOut, User } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { authService } from "@/lib/api/auth"
 
 export function AdminHeader() {
+  const router = useRouter()
   return (
     <header className="bg-background border-b border-border px-6 py-4">
       <div className="flex items-center justify-between">
@@ -54,7 +57,13 @@ export function AdminHeader() {
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  authService.logout()
+                  router.push("/login")
+                  router.refresh()
+                }}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

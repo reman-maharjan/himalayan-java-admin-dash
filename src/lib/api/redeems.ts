@@ -1,16 +1,15 @@
 import { Redeem, UserRedeem, UserRedeemWithDetails } from "@/types/redeemType"
+import { getAuthHeaders } from "@/lib/utils/auth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 // Redeem API functions
 export const redeemApi = {
   // Get all redeem offers
   async getRedeems(): Promise<Redeem[]> {
     const response = await fetch(`${API_BASE_URL}/api/redeem-offers/`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
     })
     
     if (!response.ok) {
@@ -23,10 +22,8 @@ export const redeemApi = {
   // Get redeem offer by ID
   async getRedeemById(id: number): Promise<Redeem> {
     const response = await fetch(`${API_BASE_URL}/api/redeem-offers/${id}/`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
     })
     
     if (!response.ok) {
@@ -40,10 +37,8 @@ export const redeemApi = {
   async createRedeem(data: Partial<Redeem>): Promise<Redeem> {
     const response = await fetch(`${API_BASE_URL}/api/redeem-offers/`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     })
     
@@ -58,10 +53,8 @@ export const redeemApi = {
   async updateRedeem(id: number, data: Partial<Redeem>): Promise<Redeem> {
     const response = await fetch(`${API_BASE_URL}/api/redeem-offers/${id}/`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     })
     
@@ -76,10 +69,8 @@ export const redeemApi = {
   async deleteRedeem(id: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/redeem-offers/${id}/`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
     })
     
     if (!response.ok) {
@@ -93,10 +84,8 @@ export const userRedeemApi = {
   // Get all user redemptions
   async getUserRedemptions(): Promise<UserRedeemWithDetails[]> {
     const response = await fetch(`${API_BASE_URL}/api/user-redeem/`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
     })
     
     if (!response.ok) {
@@ -109,10 +98,8 @@ export const userRedeemApi = {
   // Get user redemptions by user ID
   async getUserRedemptionsByUserId(userId: number): Promise<UserRedeemWithDetails[]> {
     const response = await fetch(`${API_BASE_URL}/api/user-redeem/?user=${userId}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
     })
     
     if (!response.ok) {
@@ -126,10 +113,8 @@ export const userRedeemApi = {
   async createUserRedeem(data: { redeem: number }): Promise<UserRedeem> {
     const response = await fetch(`${API_BASE_URL}/api/user-redeem/`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify(data),
     })
     
@@ -144,10 +129,8 @@ export const userRedeemApi = {
   // Get user redemption by ID
   async getUserRedeemById(id: number): Promise<UserRedeemWithDetails> {
     const response = await fetch(`${API_BASE_URL}/api/user-redeem/${id}/`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
+      credentials: 'include',
     })
     
     if (!response.ok) {
