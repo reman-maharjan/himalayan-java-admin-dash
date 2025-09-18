@@ -25,6 +25,7 @@ export default function OrdersPage() {
     completed: 0,
     revenue: 0
   })
+  const [updating, setUpdating] = useState<{ [id: number]: boolean }>({})
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
@@ -92,6 +93,21 @@ export default function OrdersPage() {
       return format(new Date(dateString), 'MMM d, yyyy h:mm a')
     } catch {
       return 'Invalid date'
+    }
+  }
+
+  // Update status handler (optimistic)
+  const handleStatusChange = async (id: number, order_number: string, newStatus: OrderStatus) => {
+    setUpdating(prev => ({ ...prev, [id]: true }))
+    const prevOrders = [...orders]
+    setOrders(os => os.map(o => o.order_number === order_number ? { ...o, order_status: newStatus } : o))
+    try {
+      await orderService.updateOrderStatus(order_number, newStatus)
+    } catch (e) {
+      console.error('Failed to update status', e)
+      setOrders(prevOrders)
+    } finally {
+      setUpdating(prev => ({ ...prev, [id]: false }))
     }
   }
 
@@ -254,7 +270,7 @@ export default function OrdersPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order ID
+                      Order
                     </th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Customer
@@ -277,11 +293,16 @@ export default function OrdersPage() {
                   {paginatedOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        #{order.id}
+                        <div className="flex flex-col">
+                          <span>#{order.id ?? '—'}</span>
+                          {order.order_number && (
+                            <span className="text-xs text-gray-500">{order.order_number}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {order.user.full_name || 'Guest'}
+                          {order.user?.full_name || order.customer_name || 'Guest'}
                         </div>
                         {order.user.phone_number && (
                           <div className="text-sm text-gray-500">{order.user.phone_number}</div>
@@ -307,21 +328,21 @@ export default function OrdersPage() {
                         Rs. {order.total_price}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span 
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full  capitalize ${
-                            order.order_status === 'completed' 
-                              ? 'bg-green-100 text-green-800' 
-                              : order.order_status === 'processing' 
-                                ? 'bg-yellow-100 text-yellow-800' 
-                                : order.order_status === 'cancelled' 
-                                  ? 'bg-red-100 text-red-800'
-                                  : order.order_status === 'pending'
-                                    ? 'bg-gray-100 text-gray-800'
-                                    : 'bg-blue-100 text-blue-800'
-                          }`}
+                        <Select
+                          value={order.order_status}
+                          onValueChange={(v) => handleStatusChange(order.id, order.order_number, v as OrderStatus)}
+                          disabled={!!updating[order.id]}
                         >
-                          {order?.order_status}
-                        </span>
+                          <SelectTrigger className="w-[180px] capitalize">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="confirmed">Confirmed</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {order.created_at ? formatDate(order.created_at) : 'N/A'}

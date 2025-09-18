@@ -75,7 +75,7 @@ export const orderService = {
       }
 
       // Extract pagination meta and items
-      const count: number = typeof (responseData as any)?.count === 'number' ? (responseData as any).count : (Array.isArray(responseData) ? responseData.length : 0);
+      let count: number = typeof (responseData as any)?.count === 'number' ? (responseData as any).count : (Array.isArray(responseData) ? responseData.length : 0);
       const next: string | null = typeof (responseData as any)?.next === 'string' ? (responseData as any).next : null;
       const previous: string | null = typeof (responseData as any)?.previous === 'string' ? (responseData as any).previous : null;
 
@@ -83,9 +83,17 @@ export const orderService = {
       if (Array.isArray(responseData)) {
         apiOrders = responseData;
       } else if (responseData && typeof responseData === 'object') {
-        if (Array.isArray(responseData.results)) apiOrders = responseData.results;
-        else if (Array.isArray(responseData.data)) apiOrders = responseData.data;
-        else if (Array.isArray(responseData.orders)) apiOrders = responseData.orders;
+        // Support various common formats
+        if (Array.isArray((responseData as any).results)) apiOrders = (responseData as any).results;
+        else if (Array.isArray((responseData as any).data)) apiOrders = (responseData as any).data;
+        else if (Array.isArray((responseData as any).orders)) apiOrders = (responseData as any).orders;
+        // Support present_orders/past_orders shape
+        else if (Array.isArray((responseData as any).present_orders) || Array.isArray((responseData as any).past_orders)) {
+          const present = Array.isArray((responseData as any).present_orders) ? (responseData as any).present_orders : [];
+          const past = Array.isArray((responseData as any).past_orders) ? (responseData as any).past_orders : [];
+          apiOrders = [...present, ...past];
+          count = present.length + past.length;
+        }
         else if (responseData) apiOrders = [responseData];
       }
 
@@ -129,7 +137,8 @@ export const orderService = {
             order_type: ao?.order_type || 'standard',
             total_price: ao?.total_price || '0.00',
             discount: ao?.discount || '0.00',
-            branch: ao?.branch || 0,
+            // Coerce branch to number if API returns object
+            branch: typeof ao?.branch === 'object' && ao?.branch !== null ? (ao.branch.id ?? 0) : (ao?.branch ?? 0),
             user,
             created_at: ao?.created_at || new Date().toISOString(),
             updated_at: ao?.updated_at || new Date().toISOString(),
@@ -442,9 +451,9 @@ export const orderService = {
   },
 
   // Get order by ID
-  async getOrderById(id: number): Promise<OrderResponse> {
+  async getOrderById(order_number: string): Promise<OrderResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/${id}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/orders/${order_number}/`, {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
@@ -453,18 +462,18 @@ export const orderService = {
 
       return await response.json();
     } catch (error) {
-      console.error(`Error fetching order ${id}:`, error);
+      console.error(`Error fetching order ${order_number}:`, error);
       throw error;
     }
   },
 
   // Update order status
-  async updateOrderStatus(id: number, status: string): Promise<OrderResponse> {
+  async updateOrderStatus(order_number: string, status: string): Promise<OrderResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/${id}/status/`, {
+      const response = await fetch(`${API_BASE_URL}/api/orders/${order_number}/`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ order_status: status }),
         credentials: 'include',
       });
 
@@ -472,15 +481,15 @@ export const orderService = {
 
       return await response.json();
     } catch (error) {
-      console.error(`Error updating order ${id} status:`, error);
+      console.error(`Error updating order ${order_number} status:`, error);
       throw error;
     }
   },
 
   // Delete order
-  async deleteOrder(id: number): Promise<void> {
+  async deleteOrder(order_number: string): Promise<void> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/orders/${id}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/orders/${order_number}/`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
         credentials: 'include',
@@ -493,7 +502,7 @@ export const orderService = {
         throw new Error(errorData.detail || 'Failed to delete order');
       }
     } catch (error) {
-      console.error(`Error deleting order ${id}:`, error);
+      console.error(`Error deleting order ${order_number}:`, error);
       throw error;
     }
   },
