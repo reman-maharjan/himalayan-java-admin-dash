@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { MoreHorizontal, Edit, Trash2, Gift } from "lucide-react"
+import { MoreHorizontal, Edit, Trash2 } from "lucide-react"
 import { RewardFormDialog } from "./reward-form-dialog"
 
 export interface Reward {

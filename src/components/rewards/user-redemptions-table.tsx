@@ -11,16 +11,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { MoreHorizontal, Eye, Gift, User, Calendar } from "lucide-react"
-import { UserRedeemWithDetails, Redeem } from "@/types/redeemType"
+import { MoreHorizontal, Eye, User, Calendar } from "lucide-react"
+import { UserRedeemWithDetails } from "@/types/redeemType"
 import { userRedeemApi } from "@/lib/api/redeems"
 
 export function UserRedemptionsTable() {
   const [userRedemptions, setUserRedemptions] = useState<UserRedeemWithDetails[]>([])
-  const [redeems, setRedeems] = useState<Redeem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   

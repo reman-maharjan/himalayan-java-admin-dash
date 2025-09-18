@@ -56,7 +56,7 @@ export default function SubcategoriesPage() {
     }
 
     fetchCategories()
-  }, [])
+  }, [selectedCategory])
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -281,7 +281,7 @@ export default function SubcategoriesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to delete this subcategory?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. The subcategory "{deleteDialog.subcategory?.name}" will be permanently deleted from the system.
+              This action cannot be undone. The subcategory &quot;{deleteDialog.subcategory?.name}&quot; will be permanently deleted from the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

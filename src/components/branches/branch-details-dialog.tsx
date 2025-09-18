@@ -4,10 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   MapPin,
-  Phone,
-  Mail,
-  Clock,
-  Users,
 } from "lucide-react"
 import type { Branch } from "@/lib/api/branches"
 

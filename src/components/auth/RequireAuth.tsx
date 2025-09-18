@@ -38,7 +38,7 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 export function withAuth(Component: React.ComponentType) {
-  return function WithAuth(props: any) {
+  return function WithAuth(props: Record<string, unknown>) {
     return (
       <RequireAuth>
         <Component {...props} />

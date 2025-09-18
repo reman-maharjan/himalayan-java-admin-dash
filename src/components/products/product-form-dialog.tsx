@@ -24,11 +24,6 @@ interface ProductCategory {
   subcategories?: { id: number; name: string }[]
 }
 
-interface SubCategory {
-  id: number;
-  name: string;
-  category: number;
-}
 
 interface ProductFormDialogProps {
   product: Product | null
@@ -88,7 +83,7 @@ export function ProductFormDialog({
     } else {
       setAvailableSubcategories([]);
     }
-  }, [formData.category, subcategories]);
+  }, [formData.category, formData.subcategory, subcategories, product]);
 
   // Initialize form with product data when editing
   useEffect(() => {

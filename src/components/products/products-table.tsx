@@ -30,10 +30,12 @@ export interface Product {
   image_url?: string | null
   image_alt?: string | null
   image?: string | null
+  points_required?: number
+  is_featured?: boolean
   createdAt: string
   updatedAt: string
   // Additional fields that might be present
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface ProductsTableProps {
@@ -64,10 +66,6 @@ export function ProductsTable({
     setIsEditConfirmOpen(true)
   }
 
-  const handleAdd = () => {
-    setSelectedProduct(null)
-    setIsAddDialogOpen(true)
-  }
 
   const handleSaveProduct = async (productData: Partial<Product>) => {
     try {
@@ -88,10 +86,6 @@ export function ProductsTable({
     }
   }
 
-  const handleDeleteClick = (product: Product) => {
-    setProductToDelete(product)
-    setIsDeleteDialogOpen(true)
-  }
 
   // Handle delete action from the dropdown menu
   const handleDelete = (id: string) => {
@@ -115,15 +109,6 @@ export function ProductsTable({
     }
   }
 
-  // Helper function to safely get cost with a default value
-  const getSafeCost = (cost?: number) => {
-    return cost !== undefined ? cost : 0;
-  }
-
-  // Helper function to get the image URL
-  const getImageUrl = (product: Product) => {
-    return product.image_url || product.image || '/placeholder-product.png';
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {

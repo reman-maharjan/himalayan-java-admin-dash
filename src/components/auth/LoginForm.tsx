@@ -54,8 +54,9 @@ export function LoginForm() {
       }
 
       setStep("otp");
+      setOtpSent(true);
     } catch (err) {
-      console.error('Error sending OTP:');
+      console.error('Error sending OTP:', err);
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
@@ -117,6 +118,7 @@ export function LoginForm() {
       await new Promise((resolve) => setTimeout(resolve, 1000))
       setError("")
     } catch (err) {
+      console.error('Error resending OTP:', err);
       setError("Failed to resend OTP")
     } finally {
       setIsLoading(false)

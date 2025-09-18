@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { Plus, Search, Loader2, AlertCircle, RefreshCw, Tags, Package, TrendingUp, Trash2, Edit } from "lucide-react"
+import { Plus, Search, Loader2, AlertCircle, RefreshCw, Tags, Trash2, Edit } from "lucide-react"
 import { productService } from "@/lib/api/products"
 import { toast } from "sonner"
 
@@ -436,7 +436,7 @@ export default function CategoriesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to delete this category?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. The category "{deleteDialog.category?.name}" will be permanently deleted from the system.
+              This action cannot be undone. The category &quot;{deleteDialog.category?.name}&quot; will be permanently deleted from the system.
               {deleteDialog.category?.product_count && deleteDialog.category.product_count > 0 && (
                 <span className="block mt-2 font-medium text-destructive">
                   Warning: This category has {deleteDialog.category.product_count} product{deleteDialog.category.product_count === 1 ? '' : 's'} assigned to it.

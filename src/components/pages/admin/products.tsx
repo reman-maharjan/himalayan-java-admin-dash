@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ProductsTable } from "@/components/products/products-table"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { Plus, Search, Filter, Loader2, RefreshCw, AlertCircle, Package, AlertTriangle } from "lucide-react"
@@ -41,8 +41,22 @@ type Product = Omit<ApiProduct, 'id'> & {
   add_ons: { id: number; name: string; price: number }[];
 }
 
+// Allow optional fields possibly returned by the API but not defined in ApiProduct
+type ApiProductExtended = ApiProduct & Partial<{
+  status: 'active' | 'inactive' | 'out_of_stock';
+  createdAt: string;
+  updatedAt: string;
+  category: string;
+  subcategory: string | number;
+  cost: number;
+  stock: number;
+  image_url: string | null;
+  image_alt: string | null;
+  points_required: number;
+}>;
+
 // Helper function to convert API product to TableProduct
-const toTableProduct = (product: any, categories: ProductCategory[], subcategories: SubCategory[]): Product => {
+const toTableProduct = (product: ApiProductExtended, categories: ProductCategory[], subcategories: SubCategory[]): Product => {
   // Find the subcategory to get the category ID
   const subcategory = subcategories.find(sub => sub.id === product.sub_category);
   // Find the category name using the subcategory's category ID
@@ -144,7 +158,7 @@ export default function ProductsPage() {
       console.log('Categories fetched:', categoriesResponse);
       console.log('Subcategories fetched:', subcategoriesResponse);
       
-      let productsData = productsResponse.map(product => toTableProduct(product, categoriesResponse, subcategoriesResponse));
+      const productsData = productsResponse.map(product => toTableProduct(product, categoriesResponse, subcategoriesResponse));
       
       setProducts(productsData);
       setFilteredProducts(productsData);
@@ -238,7 +252,7 @@ export default function ProductsPage() {
       stock: product.stock || 0,
       image_url: product.image || null,
       image_alt: product.image_alt || null,
-      points_required: product.points_required || 0
+      points_required: typeof product.points_required === 'number' ? product.points_required : 0
     };
     setSelectedProduct(productToEdit);
     setIsEditDialogOpen(true);

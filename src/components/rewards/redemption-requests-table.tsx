@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { MoreHorizontal, Check, X, Eye, Gift } from "lucide-react"
+import { MoreHorizontal, Check, X, Eye } from "lucide-react"
 import { RedemptionDetailsDialog } from "./redemption-details-dialog"
 
 export interface RedemptionRequest {

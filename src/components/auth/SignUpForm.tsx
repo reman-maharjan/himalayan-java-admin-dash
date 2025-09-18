@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Coffee, AlertCircle, Phone, User, Mail, Camera, Upload, Loader2, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { authService } from "@/lib/api/auth";
@@ -98,6 +97,7 @@ export function SignupForm() {
         router.push("/login");
       }, 2000);
     } catch (err) {
+      console.error('Registration error:', err);
       setError("Registration failed. Please try again.")
     } finally {
       setIsLoading(false)

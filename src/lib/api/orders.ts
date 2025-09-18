@@ -1,12 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { 
-  Order, 
   OrderRequest, 
   OrderResponse, 
   OrderStatus, 
-  ApiOrderResponse, 
   User,
-  OrderItem as OrderItemType,
-  Product
+  OrderItem as OrderItemType
 } from '@/types/orderType';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -68,7 +66,7 @@ export const orderService = {
         return { orders: [], count: 0, next: null, previous: null };
       }
 
-      let responseData: any;
+      let responseData: Record<string, unknown>;
       try {
         responseData = await response.json();
       } catch (error) {
@@ -77,11 +75,11 @@ export const orderService = {
       }
 
       // Extract pagination meta and items
-      const count: number = typeof responseData?.count === 'number' ? responseData.count : (Array.isArray(responseData) ? responseData.length : 0);
-      const next: string | null = responseData?.next ?? null;
-      const previous: string | null = responseData?.previous ?? null;
+      const count: number = typeof (responseData as any)?.count === 'number' ? (responseData as any).count : (Array.isArray(responseData) ? responseData.length : 0);
+      const next: string | null = typeof (responseData as any)?.next === 'string' ? (responseData as any).next : null;
+      const previous: string | null = typeof (responseData as any)?.previous === 'string' ? (responseData as any).previous : null;
 
-      let apiOrders: any[] = [];
+      let apiOrders: Record<string, unknown>[] = [];
       if (Array.isArray(responseData)) {
         apiOrders = responseData;
       } else if (responseData && typeof responseData === 'object') {
@@ -91,52 +89,54 @@ export const orderService = {
         else if (responseData) apiOrders = [responseData];
       }
 
-      const transformedOrders = apiOrders.map((apiOrder: any): OrderResponse | null => {
+      const transformedOrders = apiOrders.map((apiOrder: Record<string, unknown>): OrderResponse | null => {
         try {
           if (!apiOrder) return null;
 
           // Safely handle cases where user might be undefined
+          const ao: any = apiOrder as any;
           const user: User = {
-            id: apiOrder?.user?.id || 0,
-            full_name: apiOrder?.user?.full_name || 'Unknown Customer',
-            email: apiOrder.user?.email || '',
-            phone_number: apiOrder.user?.phone_number || 'N/A',
-            profile_picture: apiOrder.user?.profile_picture || null,
-            redeem_points: apiOrder.user?.redeem_points || 0,
-            created_at: apiOrder.user?.created_at || new Date().toISOString(),
-            updated_at: apiOrder.user?.updated_at || new Date().toISOString()
+            id: ao?.user?.id || 0,
+            full_name: ao?.user?.full_name || 'Unknown Customer',
+            email: ao?.user?.email || '',
+            phone_number: ao?.user?.phone_number || 'N/A',
+            profile_picture: ao?.user?.profile_picture || null,
+            redeem_points: ao?.user?.redeem_points || 0,
+            created_at: ao?.user?.created_at || new Date().toISOString(),
+            updated_at: ao?.user?.updated_at || new Date().toISOString()
           };
 
-          const items: OrderItemType[] = (Array.isArray(apiOrder.items) ? apiOrder.items : [])
-            .filter((item: any) => item && item.id)
-            .map((item: any) => {
+          const items: OrderItemType[] = (Array.isArray(ao?.items) ? ao.items : [])
+            .filter((item: Record<string, unknown>) => !!item)
+            .map((item: Record<string, unknown>) => {
+              const itm: any = item as any;
               const product = (() => {
-                if (!item.product) {
+                if (!itm?.product) {
                   return { id: 0, name: 'Unknown Product', description: '', price: 0, image: '', image_alt_description: '' };
                 }
-                return typeof item.product === 'number'
-                  ? { id: item.product, name: 'Product #' + item.product, description: '', price: 0, image: '', image_alt_description: '' }
-                  : { id: item.product.id || 0, name: item.product.name || 'Unknown Product', description: item.product.description || '', price: parseFloat(item.product.price) || 0, image: item.product.image || '', image_alt_description: item.product.image_alt_description || '' };
+                return typeof itm.product === 'number'
+                  ? { id: itm.product, name: 'Product #' + itm.product, description: '', price: 0, image: '', image_alt_description: '' }
+                  : { id: itm.product?.id || 0, name: itm.product?.name || 'Unknown Product', description: itm.product?.description || '', price: parseFloat(itm.product?.price) || 0, image: itm.product?.image || '', image_alt_description: itm.product?.image_alt_description || '' };
               })();
 
-              return { id: item.id, product, quantity: parseInt(item.quantity, 10) || 1, price: item.price ? String(item.price) : '0.00' };
+              return { id: itm.id, product, quantity: parseInt(itm.quantity, 10) || 1, price: itm.price ? String(itm.price) : '0.00' };
             });
 
           return {
-            id: apiOrder.id || 0,
-            order_number: apiOrder.order_number || `ORDER-${Date.now()}`,
-            order_status: (apiOrder.order_status || 'pending') as OrderStatus,
-            order_type: apiOrder.order_type || 'standard',
-            total_price: apiOrder.total_price || '0.00',
-            discount: apiOrder.discount || '0.00',
-            branch: apiOrder.branch || 0,
+            id: ao?.id || 0,
+            order_number: ao?.order_number || `ORDER-${Date.now()}`,
+            order_status: (ao?.order_status || 'pending') as OrderStatus,
+            order_type: ao?.order_type || 'standard',
+            total_price: ao?.total_price || '0.00',
+            discount: ao?.discount || '0.00',
+            branch: ao?.branch || 0,
             user,
-            created_at: apiOrder.created_at || new Date().toISOString(),
-            updated_at: apiOrder.updated_at || new Date().toISOString(),
+            created_at: ao?.created_at || new Date().toISOString(),
+            updated_at: ao?.updated_at || new Date().toISOString(),
             items,
             customer_name: user.full_name,
             customer_phone: user.phone_number,
-            notes: apiOrder.notes || ''
+            notes: ao?.notes || ''
           };
         } catch (error) {
           console.error('[getOrdersPaginated] Error transforming order:', error, 'Order data:', apiOrder);
@@ -196,7 +196,7 @@ export const orderService = {
       }
       
       // Handle different response formats
-      let apiOrders: any[] = [];
+      let apiOrders: Record<string, unknown>[] = [];
       
       if (Array.isArray(responseData)) {
         apiOrders = responseData;
@@ -223,7 +223,7 @@ export const orderService = {
       
       // Transform the API response to match our frontend types
       // First transform all orders, then filter out any null results
-      const transformedOrders = apiOrders.map((apiOrder: any): OrderResponse | null => {
+      const transformedOrders = apiOrders.map((apiOrder: Record<string, unknown>): OrderResponse | null => {
         try {
           if (!apiOrder) {
             console.warn('Skipping null/undefined order');
@@ -232,23 +232,25 @@ export const orderService = {
 
           // Create a safe user object with fallbacks
           // Safely handle cases where user might be undefined
+          const ao: any = apiOrder as any;
           const user: User = {
-            id: apiOrder?.user?.id || 0,
-            full_name: apiOrder?.user?.full_name || 'Unknown Customer',
-            email: apiOrder.user?.email || '',
-            phone_number: apiOrder.user?.phone_number || 'N/A',
-            profile_picture: apiOrder.user?.profile_picture || null,
-            redeem_points: apiOrder.user?.redeem_points || 0,
-            created_at: apiOrder.user?.created_at || new Date().toISOString(),
-            updated_at: apiOrder.user?.updated_at || new Date().toISOString()
+            id: ao?.user?.id || 0,
+            full_name: ao?.user?.full_name || 'Unknown Customer',
+            email: ao?.user?.email || '',
+            phone_number: ao?.user?.phone_number || 'N/A',
+            profile_picture: ao?.user?.profile_picture || null,
+            redeem_points: ao?.user?.redeem_points || 0,
+            created_at: ao?.user?.created_at || new Date().toISOString(),
+            updated_at: ao?.user?.updated_at || new Date().toISOString()
           };
 
           // Safely transform items
-          const items: OrderItemType[] = (Array.isArray(apiOrder.items) ? apiOrder.items : [])
-            .filter((item: any) => !!item)
-            .map((item: any, index: number) => {
+          const items: OrderItemType[] = (Array.isArray(ao?.items) ? ao.items : [])
+            .filter((item: Record<string, unknown>) => !!item)
+            .map((item: Record<string, unknown>, index: number) => {
+              const itm: any = item as any;
               const product = (() => {
-                if (!item.product) {
+                if (!itm?.product) {
                   return {
                     id: 0,
                     name: 'Unknown Product',
@@ -258,48 +260,48 @@ export const orderService = {
                     image_alt_description: ''
                   };
                 }
-                return typeof item.product === 'number' 
+                return typeof itm.product === 'number'
                   ? { 
-                      id: item.product, 
-                      name: 'Product #' + item.product, 
+                      id: itm.product, 
+                      name: 'Product #' + itm.product, 
                       description: '', 
                       price: 0, 
                       image: '', 
                       image_alt_description: '' 
                     }
                   : { 
-                      id: item.product.id || 0, 
-                      name: item.product.name || 'Unknown Product',
-                      description: item.product.description || '',
-                      price: parseFloat(item.product.price) || 0,
-                      image: item.product.image || '',
-                      image_alt_description: item.product.image_alt_description || ''
+                      id: itm.product?.id || 0, 
+                      name: itm.product?.name || 'Unknown Product',
+                      description: itm.product?.description || '',
+                      price: parseFloat(itm.product?.price) || 0,
+                      image: itm.product?.image || '',
+                      image_alt_description: itm.product?.image_alt_description || ''
                     };
               })();
 
               return {
-                id: item.id ?? (typeof item.product === 'number' ? item.product : item.product?.id ?? index),
+                id: itm.id ?? (typeof itm.product === 'number' ? itm.product : itm.product?.id ?? index),
                 product: product,
-                quantity: parseInt(item.quantity, 10) || 1,
-                price: item.price ? String(item.price) : '0.00'
+                quantity: parseInt(itm.quantity, 10) || 1,
+                price: itm.price ? String(itm.price) : '0.00'
               };
             });
 
           return {
-            id: apiOrder.id || 0,
-            order_number: apiOrder.order_number || `ORDER-${Date.now()}`,
-            order_status: (apiOrder.order_status || 'pending') as OrderStatus,
-            order_type: apiOrder.order_type || 'standard',
-            total_price: apiOrder.total_price || '0.00',
-            discount: apiOrder.discount || '0.00',
-            branch: apiOrder.branch || 0,
+            id: ao?.id || 0,
+            order_number: ao?.order_number || `ORDER-${Date.now()}`,
+            order_status: (ao?.order_status || 'pending') as OrderStatus,
+            order_type: ao?.order_type || 'standard',
+            total_price: ao?.total_price || '0.00',
+            discount: ao?.discount || '0.00',
+            branch: ao?.branch || 0,
             user: user,
-            created_at: apiOrder.created_at || new Date().toISOString(),
-            updated_at: apiOrder.updated_at || new Date().toISOString(),
+            created_at: ao?.created_at || new Date().toISOString(),
+            updated_at: ao?.updated_at || new Date().toISOString(),
             items: items,
             customer_name: user.full_name,
             customer_phone: user.phone_number,
-            notes: apiOrder.notes || ''
+            notes: ao?.notes || ''
           };
         } catch (error) {
           console.error('Error transforming order:', error, 'Order data:', apiOrder);
@@ -362,7 +364,7 @@ export const orderService = {
       }
       
       // Handle different possible response formats
-      let apiOrders: ApiOrderResponse[] = [];
+      let apiOrders: Record<string, unknown>[] = [];
       
       if (Array.isArray(responseData)) {
         // If the response is an array, use it directly
@@ -383,24 +385,25 @@ export const orderService = {
       
       console.log('Processed API orders:', apiOrders);
 
-      return apiOrders.map((apiOrder): OrderResponse => {
+      return apiOrders.map((apiOrder: Record<string, unknown>): OrderResponse => {
+        const ao: any = apiOrder as any;
         const user: User = {
-          id: apiOrder.user.id,
-          full_name: apiOrder.user.full_name,
+          id: ao?.user?.id,
+          full_name: ao?.user?.full_name,
           email: '',
-          phone_number: apiOrder.user.phone_number,
+          phone_number: ao?.user?.phone_number,
           profile_picture: null,
           redeem_points: 0,
-          created_at: apiOrder.created_at,
-          updated_at: apiOrder.updated_at,
+          created_at: ao?.created_at,
+          updated_at: ao?.updated_at,
         };
 
-        const items: OrderItemType[] = apiOrder.items.map(item => {
-          const product = typeof item.product === 'number'
+        const items: OrderItemType[] = (ao?.items || []).map((item: any) => {
+          const product = typeof item?.product === 'number'
             ? { id: item.product, name: 'Product', description: '', price: 0, image: '', image_alt_description: '' }
             : {
-                id: item.product.id,
-                name: item.product.name,
+                id: item?.product?.id,
+                name: item?.product?.name,
                 description: '',
                 price: 0,
                 image: '',
@@ -408,27 +411,27 @@ export const orderService = {
               };
 
           return {
-            id: item.id,
+            id: item?.id,
             product,
-            quantity: item.quantity,
-            price: item.price,
+            quantity: item?.quantity,
+            price: item?.price,
           };
         });
 
         return {
-          id: apiOrder.id,
-          order_number: apiOrder.order_number,
-          order_status: apiOrder.order_status as OrderStatus,
-          order_type: apiOrder.order_type,
-          total_price: apiOrder.total_price,
-          discount: apiOrder.discount || '0',
-          branch: apiOrder.branch,
+          id: ao?.id,
+          order_number: ao?.order_number,
+          order_status: ao?.order_status as OrderStatus,
+          order_type: ao?.order_type,
+          total_price: ao?.total_price,
+          discount: ao?.discount || '0',
+          branch: ao?.branch,
           user,
-          created_at: apiOrder.created_at,
-          updated_at: apiOrder.updated_at,
+          created_at: ao?.created_at,
+          updated_at: ao?.updated_at,
           items,
-          customer_name: apiOrder.user.full_name,
-          customer_phone: apiOrder.user.phone_number,
+          customer_name: ao?.user?.full_name,
+          customer_phone: ao?.user?.phone_number,
           notes: '',
         };
       });

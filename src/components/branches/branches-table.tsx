@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   Dialog,
@@ -47,7 +46,6 @@ interface BranchesTableProps {
 }
 
 export function BranchesTable({ searchQuery, statusFilter, cityFilter }: BranchesTableProps) {
-  const router = useRouter()
   const [branches, setBranches] = useState<Branch[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -445,7 +443,7 @@ export function BranchesTable({ searchQuery, statusFilter, cityFilter }: Branche
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to delete this branch?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. The branch "{deleteDialog.branch?.name}" at "{deleteDialog.branch?.address}" will be permanently deleted from the system.
+              This action cannot be undone. The branch &quot;{deleteDialog.branch?.name}&quot; at &quot;{deleteDialog.branch?.address}&quot; will be permanently deleted from the system.
               <span className="block mt-2 font-medium text-destructive">
                 Warning: All data associated with this branch will be permanently removed.
               </span>

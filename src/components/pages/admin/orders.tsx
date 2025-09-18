@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { Search, Filter, Download, ShoppingCart, Clock, CheckCircle, TrendingUp, DollarSign, Loader2, AlertCircle } from "lucide-react"
+import { Search, Filter, Download, ShoppingCart, Clock, CheckCircle, TrendingUp, Loader2 } from "lucide-react"
 import { orderService } from "@/lib/api/orders"
-import { Order, OrderStatus, OrderResponse } from "@/types/orderType"
+import { OrderStatus, OrderResponse } from "@/types/orderType"
 import { format } from "date-fns"
 
 export default function OrdersPage() {
@@ -48,7 +48,6 @@ export default function OrdersPage() {
         setTotalCount(count)
         
         // Calculate statistics
-        const today = new Date().toISOString().split('T')[0]
         const completedOrders = pageOrders.filter(order => order.order_status === 'completed')
 
         setStats({
@@ -91,26 +90,11 @@ export default function OrdersPage() {
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'MMM d, yyyy h:mm a')
-    } catch (e) {
+    } catch {
       return 'Invalid date'
     }
   }
 
-  const handleStatusChange = async (orderId: number, newStatus: OrderStatus) => {
-    try {
-      await orderService.updateOrderStatus(orderId, newStatus)
-      setOrders(orders.map(order => 
-        order.id === orderId ? { ...order, status: newStatus } : order
-      ))
-    } catch (error) {
-      console.error('Failed to update order status:', error)
-      setError(
-        error instanceof Error 
-          ? error.message 
-          : 'Failed to update order status. Please check your connection and try again.'
-      );
-    }
-  }
 
   if (loading) {
     return error ? (

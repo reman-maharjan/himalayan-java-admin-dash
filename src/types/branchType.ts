@@ -24,9 +24,3 @@ export interface BranchRequest {
   is_active?: boolean;
 }
 
-interface BranchesTableProps {
-  searchQuery?: string
-  statusFilter?: string
-  cityFilter?: string
-  onDeleteBranch?: (branch: Branch) => void
-}

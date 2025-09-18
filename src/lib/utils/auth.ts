@@ -40,7 +40,7 @@ interface ApiError extends Error {
 }
 
 // Handle API errors
-export const handleApiError = (error: unknown) => async (response: Response) => {
+export const handleApiError = async (response: Response) => {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({
       detail: response.statusText || 'An error occurred'
