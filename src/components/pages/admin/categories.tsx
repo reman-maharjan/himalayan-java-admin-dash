@@ -51,7 +51,7 @@ export default function CategoriesPage() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
+  const [itemsPerPage] = useState(10)
 
   const resetForm = () => {
     setFormData({

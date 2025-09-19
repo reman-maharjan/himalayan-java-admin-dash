@@ -11,10 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react"
 import { ProductFormDialog } from "./product-form-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import Image from "next/image"
 
 export interface Product {
@@ -22,11 +22,11 @@ export interface Product {
   name: string
   description: string
   category: string
-  subcategory: string | number
+  sub_category: string | number
   price: number
   cost?: number
   stock?: number
-  status: "active" | "inactive" | "out_of_stock"
+  status: "regular" | "featured"
   image_url?: string | null
   image_alt?: string | null
   image?: string | null
@@ -88,8 +88,9 @@ export function ProductsTable({
 
 
   // Handle delete action from the dropdown menu
-  const handleDelete = (id: string) => {
-    onDelete(id).catch(console.error);
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product)
+    setIsDeleteDialogOpen(true)
   }
 
   const handleConfirmDelete = async () => {
@@ -109,26 +110,7 @@ export function ProductsTable({
     }
   }
 
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "active":
-        return "bg-green-100 text-green-800"
-      case "inactive":
-        return "bg-gray-100 text-gray-800"
-      case "out_of_stock":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getStockColor = (stock: number | undefined) => {
-    if (stock === undefined || stock === null) return "text-gray-600"
-    if (stock === 0) return "text-red-600"
-    if (stock < 10) return "text-yellow-600"
-    return "text-green-600"
-  }
+  
 
   return (
     <>
@@ -137,12 +119,8 @@ export function ProductsTable({
           <TableHeader>
             <TableRow>
               <TableHead>Product</TableHead>
-              <TableHead>Category</TableHead>
+              <TableHead>Subcategory</TableHead>
               <TableHead>Price</TableHead>
-              <TableHead>Cost</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Margin</TableHead>
               <TableHead>Updated</TableHead>
               <TableHead className="w-[70px]">Actions</TableHead>
             </TableRow>
@@ -169,29 +147,16 @@ export function ProductsTable({
                 </TableCell>
                 <TableCell>
                   <div>
-                    <div className="font-medium text-sm">{product.category}</div>
-                    <div className="text-xs text-muted-foreground">{product.subcategory}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {(() => {
+                        const id = typeof product.sub_category === 'string' ? parseInt(product.sub_category, 10) : product.sub_category
+                        const sub = subcategories.find(s => s.id === id)
+                        return sub?.name ?? '-'
+                      })()}
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell className="font-medium">Rs. {product.price}</TableCell>
-                <TableCell className="text-muted-foreground">Rs. {product.cost}</TableCell>
-                <TableCell>
-                  <span className={`font-medium ${getStockColor(product.stock)}`}>
-                    {product.stock ?? 'N/A'}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={getStatusColor(product.status)}>
-                    {product.status.replace("_", " ")}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <span className="text-green-600 font-medium">
-                    {product.cost !== undefined ? 
-                      (((product.price - product.cost) / product.price) * 100).toFixed(1) : 
-                      '0.0'}%
-                  </span>
-                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
                   {new Date(product.updatedAt).toLocaleDateString()}
                 </TableCell>
@@ -209,7 +174,7 @@ export function ProductsTable({
                         Edit Product
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => handleDelete(product.id)} className="text-destructive">
+                      <DropdownMenuItem onClick={() => handleDeleteClick(product)} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Product
                       </DropdownMenuItem>
@@ -256,21 +221,23 @@ export function ProductsTable({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete product?</DialogTitle>
-            <DialogDescription>
+      {/* Delete Confirmation AlertDialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete product?</AlertDialogTitle>
+            <AlertDialogDescription>
               This action cannot be undone. This will permanently delete {productToDelete?.name}.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isLoading}>Cancel</Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isLoading}>Delete</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={isLoading}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Export the add dialog trigger */}
       <Button onClick={() => setIsAddDialogOpen(true)} className="hidden" id="add-product-trigger">

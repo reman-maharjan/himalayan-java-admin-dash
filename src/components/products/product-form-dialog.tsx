@@ -49,9 +49,7 @@ export function ProductFormDialog({
     price: 0,
     category: "",
     subcategory: "",
-    cost: 0,
-    stock: 0,
-    status: "active" as Product["status"],
+    status: "regular" as Product["status"],
     image_url: "",
     image: "", // Fixed: Added missing image field
     points_required: 0,
@@ -81,7 +79,8 @@ export function ProductFormDialog({
         setFormData(prev => ({ ...prev, subcategory: '' }));
       }
     } else {
-      setAvailableSubcategories([]);
+      // When no category is selected, show all subcategories
+      setAvailableSubcategories(subcategories);
     }
   }, [formData.category, formData.subcategory, subcategories, product]);
 
@@ -130,9 +129,7 @@ export function ProductFormDialog({
         price: product.price || 0,
         category: categoryId,
         subcategory: subcategoryId,
-        cost: product.cost || 0,
-        stock: product.stock || 0,
-        status: product.status || 'active',
+        status: product.status || 'regular',
         image_url: product.image_url || '',
         image: product.image || '',
         points_required: product.points_required || 0,
@@ -148,9 +145,7 @@ export function ProductFormDialog({
         price: 0,
         category: '',
         subcategory: '',
-        cost: 0,
-        stock: 0,
-        status: 'active',
+        status: 'regular',
         image_url: '',
         image: '',
         points_required: 0,
@@ -167,8 +162,10 @@ export function ProductFormDialog({
     // Ensure we're sending the correct data format
     const submitData = {
       ...formData,
+      // Provide both for compatibility; sub_category is used by the API layer
       // Convert subcategory to number if it's a string
-      subcategory: formData.subcategory ? parseInt(formData.subcategory) : undefined,
+      sub_category: formData.subcategory ? parseInt(formData.subcategory, 10) : undefined,
+      subcategory: formData.subcategory ? parseInt(formData.subcategory, 10) : undefined,
       // Add the category name for display purposes
       category: categories.find(cat => cat.id.toString() === formData.category)?.name || ''
     };
@@ -211,18 +208,6 @@ export function ProductFormDialog({
           </DialogDescription>
         </DialogHeader>
         
-        {/* Debug info - remove in production */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="bg-gray-100 p-2 rounded text-xs">
-            <p><strong>Debug:</strong></p>
-            <p>Categories: {categories.length}</p>
-            <p>Subcategories: {subcategories.length}</p>
-            <p>Available Subcategories: {availableSubcategories.length}</p>
-            <p>Selected Category: {formData.category}</p>
-            <p>Selected Subcategory: {formData.subcategory}</p>
-          </div>
-        )}
-        
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -240,7 +225,7 @@ export function ProductFormDialog({
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value: "active" | "inactive" | "out_of_stock") =>
+                  onValueChange={(value: Product["status"]) =>
                     setFormData({ ...formData, status: value })
                   }
                 >
@@ -248,9 +233,8 @@ export function ProductFormDialog({
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                    <SelectItem value="featured">Featured</SelectItem>
+                    <SelectItem value="regular">Regular</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -291,15 +275,13 @@ export function ProductFormDialog({
                     console.log('Subcategory changed to:', value);
                     setFormData({ ...formData, subcategory: value });
                   }}
-                  disabled={!formData.category || availableSubcategories.length === 0}
+                  disabled={availableSubcategories.length === 0}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={
-                      !formData.category 
-                        ? "Select category first" 
-                        : availableSubcategories.length === 0 
-                          ? "No subcategories available"
-                          : "Select sub-category"
+                      availableSubcategories.length === 0 
+                        ? "No subcategories available"
+                        : "Select sub-category"
                     } />
                   </SelectTrigger>
                   <SelectContent>
@@ -313,7 +295,7 @@ export function ProductFormDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="price">Price (Rs.)</Label>
                 <Input
@@ -324,31 +306,6 @@ export function ProductFormDialog({
                   placeholder="0"
                   min="0"
                   step="0.01"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="cost">Cost (Rs.)</Label>
-                <Input
-                  id="cost"
-                  type="number"
-                  value={formData.cost}
-                  onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
-                  placeholder="0"
-                  min="0"
-                  step="0.01"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="stock">Stock Quantity</Label>
-                <Input
-                  id="stock"
-                  type="number"
-                  value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
-                  placeholder="0"
-                  min="0"
                   required
                 />
               </div>
@@ -375,17 +332,7 @@ export function ProductFormDialog({
               />
             </div>
 
-            {formData.price > 0 && formData.cost > 0 && (
-              <div className="p-3 bg-muted rounded-md">
-                <div className="text-sm font-medium">Profit Margin</div>
-                <div className="text-lg font-bold text-green-600">
-                  {(((formData.price - formData.cost) / formData.price) * 100).toFixed(1)}%
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Profit: Rs. {(formData.price - formData.cost).toFixed(2)}
-                </div>
-              </div>
-            )}
+            
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

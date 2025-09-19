@@ -16,7 +16,7 @@ import { Product as TableProduct } from "@/components/products/products-table"
 // Create a mapped type that converts between API and Table product types
 type Product = Omit<ApiProduct, 'id'> & {
   id: string; // Changed to string to match TableProduct
-  status: 'active' | 'inactive' | 'out_of_stock';
+  status: 'regular' | 'featured';
   createdAt: string;
   updatedAt: string;
   // Additional fields for the table
@@ -43,7 +43,7 @@ type Product = Omit<ApiProduct, 'id'> & {
 
 // Allow optional fields possibly returned by the API but not defined in ApiProduct
 type ApiProductExtended = ApiProduct & Partial<{
-  status: 'active' | 'inactive' | 'out_of_stock';
+  status: 'regular' | 'featured';
   createdAt: string;
   updatedAt: string;
   category: string;
@@ -57,15 +57,17 @@ type ApiProductExtended = ApiProduct & Partial<{
 
 // Helper function to convert API product to TableProduct
 const toTableProduct = (product: ApiProductExtended, categories: ProductCategory[], subcategories: SubCategory[]): Product => {
+  // Ensure sub_category is treated as a number for comparison
+  const subCategoryId = typeof product.sub_category === 'string' ? parseInt(product.sub_category, 10) : product.sub_category;
   // Find the subcategory to get the category ID
-  const subcategory = subcategories.find(sub => sub.id === product.sub_category);
+  const subcategory = subcategories.find(sub => sub.id === subCategoryId);
   // Find the category name using the subcategory's category ID
   const category = categories.find(cat => cat.id === subcategory?.category);
   
   return {
     ...product,
     id: String(product.id),
-    status: (product.status as 'active' | 'inactive' | 'out_of_stock') || 'inactive',
+    status: (product.status as 'regular' | 'featured') || 'regular',
     createdAt: product.createdAt || new Date().toISOString(),
     updatedAt: product.updatedAt || new Date().toISOString(),
     category: category?.name || '',
@@ -78,7 +80,7 @@ const toTableProduct = (product: ApiProductExtended, categories: ProductCategory
     name: product.name || '',
     description: product.description || '',
     price: product.price || 0,
-    sub_category: product.sub_category || 0,
+    sub_category: Number(product.sub_category) || 0,
     is_featured: product.is_featured || false,
     image: product.image || null,
     image_alt_description: product.image_alt_description || null,
@@ -107,7 +109,7 @@ export default function ProductsPage() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
+  const [itemsPerPage] = useState(10)
 
   // Apply filters and search
   const applyFilters = useCallback((
@@ -231,16 +233,20 @@ export default function ProductsPage() {
       name: product.name || '',
       description: product.description || '',
       price: product.price || 0,
-      status: product.status || 'inactive',
+      status: product.status || 'regular',
       // Category and subcategory
       category: product.category || '',
-      subcategory: product.subcategory || 0,
+      subcategory: (() => {
+        const id = typeof product.sub_category === 'string' ? parseInt(product.sub_category, 10) : product.sub_category;
+        const sub = subcategories.find(s => s.id === id);
+        return sub?.name ?? (id ?? 0);
+      })(),
+      sub_category: typeof product.sub_category === 'string' ? parseInt(product.sub_category) : (product.sub_category || 0),
       // Dates
       createdAt: product.createdAt || new Date().toISOString(),
       updatedAt: product.updatedAt || new Date().toISOString(),
       // Product details with defaults
-      sub_category: typeof product.subcategory === 'string' ? parseInt(product.subcategory) : (product.subcategory || 0),
-      is_featured: product.status === 'active',
+      is_featured: product.status === 'featured',
       image: product.image || null,
       image_alt_description: product.image_alt || '',
       redeem_points: 0,
@@ -281,10 +287,10 @@ export default function ProductsPage() {
         name: data.name || '',
         description: data.description || '',
         price: data.price || 0,
-        sub_category: data.subcategory ? 
-          (typeof data.subcategory === 'string' ? parseInt(data.subcategory) : data.subcategory) : 
+        sub_category: data.sub_category ? 
+          (typeof data.sub_category === 'string' ? parseInt(data.sub_category) : data.sub_category) : 
           (subcategories.length > 0 ? subcategories[0].id : 1), // Use first available subcategory as fallback
-        is_featured: data.status === 'active',
+        is_featured: data.status === 'featured',
         image: data.image || null,
         image_alt_description: data.description || '',
         redeem_points: 0, // Default value
@@ -565,7 +571,7 @@ export default function ProductsPage() {
           name: '',
           description: '',
           price: 0,
-          status: 'active',
+          status: 'regular',
           category: '',
           subcategory: subcategories.length > 0 ? subcategories[0].id : '', // Set default subcategory
           cost: 0,

@@ -34,7 +34,7 @@ export default function SubcategoriesPage() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage] = useState(3) // Reduced to show pagination with fewer items
+  const [itemsPerPage] = useState(10)
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -43,9 +43,6 @@ export default function SubcategoriesPage() {
         setLoading(true)
         const data = await productService.getCategories()
         setCategories(data)
-        if (data.length > 0 && !selectedCategory) {
-          setSelectedCategory(data[0].id)
-        }
       } catch (err) {
         console.error('Error fetching categories:', err)
         setError('Failed to load categories')
@@ -56,7 +53,7 @@ export default function SubcategoriesPage() {
     }
 
     fetchCategories()
-  }, [selectedCategory])
+  }, [])
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -78,17 +75,12 @@ export default function SubcategoriesPage() {
   // Fetch subcategories when selectedCategory changes
   useEffect(() => {
     const fetchSubcategories = async () => {
-      if (!selectedCategory) {
-        setSubcategories([])
-        setLoading(false)
-        return
-      }
-
       setLoading(true)
       setError(null)
-      
       try {
-        const data = await productService.getSubcategories(Number(selectedCategory))
+        const data = selectedCategory
+          ? await productService.getSubcategories(Number(selectedCategory))
+          : await productService.getSubcategories()
         setSubcategories(data)
       } catch (err) {
         console.error('Error fetching subcategories:', err)
@@ -372,7 +364,7 @@ export default function SubcategoriesPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
-                disabled={!selectedCategory || loading}
+                disabled={loading}
               />
             </div>
           </div>
@@ -383,21 +375,15 @@ export default function SubcategoriesPage() {
             </div>
           )}
 
-          {loading && selectedCategory ? (
+          {loading ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-          ) : !selectedCategory ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">Select a category</h3>
-              <p>Choose a category to view its sub-categories</p>
             </div>
           ) : filteredSubcategories.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">No sub-categories found</h3>
-              <p>No sub-categories found for the selected category and search query</p>
+              <p>No sub-categories match your current filters</p>
             </div>
           ) : (
             <div className="border rounded-lg overflow-hidden">
